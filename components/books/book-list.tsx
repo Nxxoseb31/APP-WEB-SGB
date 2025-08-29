@@ -1,101 +1,102 @@
 "use client"
 
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
+import { ListSection } from "@/components/ui/list-section"
+import { EntityCard } from "@/components/ui/entity-card"
 import { Badge } from "@/components/ui/badge"
-import { Trash2 } from "lucide-react"
-import { useBooks } from "@/hooks/use-books"
-import { useAuthors } from "@/hooks/use-authors"
-import { useLibraries } from "@/hooks/use-libraries"
+import { Skeleton } from "@/components/ui/skeleton"
+import type { Libro } from "@/types/entities"
 
-export function BookList() {
-  const { books, loading, error, deleteBook } = useBooks()
-  const { authors } = useAuthors()
-  const { libraries } = useLibraries()
+interface BookListProps {
+  libros: Libro[]
+  loading?: boolean
+  error?: string | null
+}
 
-  const getAuthorName = (authorId: string) => {
-    const author = authors.find((a) => a.id === authorId)
-    return author ? author.nombre : "Autor desconocido"
-  }
-
-  const getLibraryName = (libraryId: string) => {
-    const library = libraries.find((l) => l.id === libraryId)
-    return library ? library.nombre : "Biblioteca desconocida"
-  }
-
-  const handleDelete = async (id: string, titulo: string) => {
-    if (confirm(`¿Estás seguro de que deseas eliminar el libro "${titulo}"?`)) {
-      try {
-        await deleteBook(id)
-      } catch (error) {
-        // Error is handled by the hook
-      }
-    }
-  }
-
+export function BookList({ libros, loading = false, error }: BookListProps) {
   if (loading) {
     return (
-      <Card className="bg-white">
-        <CardContent className="p-6">
-          <p className="text-center text-gray-600">Cargando libros...</p>
-        </CardContent>
-      </Card>
+      <ListSection title="Lista de Libros" description="Libros registrados en el sistema">
+        <div className="space-y-4">
+          {[...Array(3)].map((_, i) => (
+            <div key={i} className="p-4 border rounded-lg">
+              <Skeleton className="h-5 w-3/4 mb-2" />
+              <Skeleton className="h-4 w-1/2 mb-2" />
+              <Skeleton className="h-4 w-2/3" />
+            </div>
+          ))}
+        </div>
+      </ListSection>
+    )
+  }
+
+  if (error) {
+    return (
+      <ListSection title="Lista de Libros" description="Libros registrados en el sistema">
+        <div className="text-center py-8 text-destructive">
+          <p>Error al cargar libros: {error}</p>
+        </div>
+      </ListSection>
     )
   }
 
   return (
-    <Card className="bg-white">
-      <CardHeader>
-        <CardTitle className="text-lg font-semibold">Lista de Libros</CardTitle>
-        <p className="text-sm text-gray-600">Libros registrados en el sistema</p>
-      </CardHeader>
-      <CardContent>
-        {error && <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded text-red-700 text-sm">{error}</div>}
-
-        {books.length === 0 ? (
-          <p className="text-gray-600 text-center py-4">No hay libros registrados</p>
-        ) : (
-          <div className="space-y-3">
-            {books.map((book) => (
-              <div key={book.id} className="border border-gray-200 rounded-lg p-4">
-                <div className="flex justify-between items-start">
-                  <div className="flex-1">
-                    <h3 className="font-semibold text-gray-900">{book.titulo}</h3>
-                    <p className="text-sm text-gray-600 font-medium">Año: {book.año}</p>
-                    <div className="mt-2">
-                      <p className="text-sm text-gray-600">Autores:</p>
-                      <div className="flex flex-wrap gap-1 mt-1">
-                        {book.autores.map((authorId) => (
-                          <span key={authorId} className="text-sm text-gray-700">
-                            {getAuthorName(authorId)}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-                    <div className="mt-2">
-                      <p className="text-sm text-gray-600">Biblioteca:</p>
-                      <Badge variant="secondary" className="mt-1">
-                        {book.biblioteca ? getLibraryName(book.biblioteca) : "Sin biblioteca asignada"}
-                      </Badge>
-                    </div>
-                    <p className="text-xs text-gray-500 mt-2">
-                      Registrado: {new Date(Number(book.id)).toLocaleDateString("es-ES")}
-                    </p>
-                  </div>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => handleDelete(book.id, book.titulo)}
-                    className="text-black hover:text-gray-700 hover:bg-gray-100"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </div>
+    <ListSection
+      title="Lista de Libros"
+      description="Libros registrados en el sistema"
+      isEmpty={libros.length === 0}
+      emptyMessage="No hay libros registrados. Agrega el primer libro usando el formulario."
+    >
+      <div className="space-y-4">
+        {libros.map((libro) => (
+          <EntityCard key={libro.id} showActions={false}>
+            <div className="space-y-3">
+              <div className="flex items-start justify-between">
+                <h3 className="font-semibold text-foreground text-lg">{libro.titulo}</h3>
+                <Badge variant="outline" className="text-xs">
+                  Año: {libro.anoPublicacion}
+                </Badge>
               </div>
-            ))}
-          </div>
-        )}
-      </CardContent>
-    </Card>
+
+              <div className="space-y-2">
+                <div>
+                  <p className="text-sm text-muted-foreground mb-1">Autores:</p>
+                  <div className="flex flex-wrap gap-1">
+                    {libro.autores.map((autor) => (
+                      <Badge key={autor.id} variant="secondary" className="text-xs">
+                        {autor.nombre}
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+
+                {libro.bibliotecas.length > 0 && (
+                  <div>
+                    <p className="text-sm text-muted-foreground mb-1">Biblioteca:</p>
+                    <div className="flex flex-wrap gap-1">
+                      {libro.bibliotecas.map((biblioteca) => (
+                        <Badge key={biblioteca.id} variant="default" className="text-xs">
+                          {biblioteca.nombre}
+                        </Badge>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {libro.bibliotecas.length === 0 && <p className="text-xs text-muted-foreground">Sin biblioteca</p>}
+              </div>
+
+              <p className="text-xs text-muted-foreground">
+                Registrado:{" "}
+                {new Date(libro.createdAt).toLocaleDateString("es-ES", {
+                  year: "numeric",
+                  month: "long",
+                  day: "numeric",
+                })}
+              </p>
+            </div>
+          </EntityCard>
+        ))}
+      </div>
+    </ListSection>
   )
 }

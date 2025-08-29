@@ -1,89 +1,121 @@
 "use client"
 
-import type { SearchResults as SearchResultsType } from "@/types/entities"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { X, User, Book, Building } from "lucide-react"
+import { BookOpen, MapPin, User, X } from "lucide-react"
+import type { SearchResult } from "@/types/entities"
 
 interface SearchResultsProps {
-  results: SearchResultsType
+  results: SearchResult
   onClose: () => void
+  loading?: boolean
 }
 
-export function SearchResults({ results, onClose }: SearchResultsProps) {
-  const hasResults = results.autores.length > 0 || results.libros.length > 0 || results.bibliotecas.length > 0
+export function SearchResults({ results, onClose, loading = false }: SearchResultsProps) {
+  const totalResults = results.autores.length + results.libros.length + results.bibliotecas.length
 
-  if (!hasResults) {
+  if (totalResults === 0) {
     return (
-      <Card className="bg-white shadow-lg">
-        <CardContent className="p-4">
-          <div className="flex justify-between items-center">
-            <p className="text-gray-600">No se encontraron resultados</p>
-            <Button variant="ghost" size="sm" onClick={onClose}>
-              <X className="h-4 w-4" />
-            </Button>
-          </div>
+      <Card className="mt-4">
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardTitle className="text-lg">Resultados de Búsqueda</CardTitle>
+          <Button variant="ghost" size="sm" onClick={onClose}>
+            <X className="h-4 w-4" />
+          </Button>
+        </CardHeader>
+        <CardContent>
+          <p className="text-muted-foreground text-center py-8">No se encontraron resultados para tu búsqueda.</p>
         </CardContent>
       </Card>
     )
   }
 
   return (
-    <Card className="bg-white shadow-lg max-h-96 overflow-y-auto">
-      <CardHeader className="pb-2">
-        <div className="flex justify-between items-center">
+    <Card className="mt-4">
+      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+        <div>
           <CardTitle className="text-lg">Resultados de Búsqueda</CardTitle>
-          <Button variant="ghost" size="sm" onClick={onClose}>
-            <X className="h-4 w-4" />
-          </Button>
+          <CardDescription>
+            {totalResults} {totalResults === 1 ? "resultado encontrado" : "resultados encontrados"}
+          </CardDescription>
         </div>
+        <Button variant="ghost" size="sm" onClick={onClose}>
+          <X className="h-4 w-4" />
+        </Button>
       </CardHeader>
-      <CardContent className="space-y-4">
+      <CardContent className="space-y-6">
+        {/* Authors Results */}
         {results.autores.length > 0 && (
           <div>
-            <h4 className="font-semibold text-gray-900 flex items-center gap-2 mb-2">
-              <User className="h-4 w-4" />
-              Autores ({results.autores.length})
-            </h4>
+            <div className="flex items-center gap-2 mb-3">
+              <User className="h-4 w-4 text-muted-foreground" />
+              <h3 className="font-semibold">Autores ({results.autores.length})</h3>
+            </div>
             <div className="space-y-2">
               {results.autores.map((autor) => (
-                <div key={autor.id} className="p-2 bg-gray-50 rounded">
-                  <p className="font-medium">{autor.nombre}</p>
-                  <p className="text-sm text-gray-600">{autor.nacionalidad}</p>
+                <div key={autor.id} className="flex items-center justify-between p-3 border rounded-lg">
+                  <div>
+                    <p className="font-medium">{autor.nombre}</p>
+                    <p className="text-sm text-muted-foreground">{autor.nacionalidad}</p>
+                  </div>
+                  <Badge variant="secondary">Autor</Badge>
                 </div>
               ))}
             </div>
           </div>
         )}
 
+        {/* Books Results */}
         {results.libros.length > 0 && (
           <div>
-            <h4 className="font-semibold text-gray-900 flex items-center gap-2 mb-2">
-              <Book className="h-4 w-4" />
-              Libros ({results.libros.length})
-            </h4>
+            <div className="flex items-center gap-2 mb-3">
+              <BookOpen className="h-4 w-4 text-muted-foreground" />
+              <h3 className="font-semibold">Libros ({results.libros.length})</h3>
+            </div>
             <div className="space-y-2">
               {results.libros.map((libro) => (
-                <div key={libro.id} className="p-2 bg-gray-50 rounded">
-                  <p className="font-medium">{libro.titulo}</p>
-                  <p className="text-sm text-gray-600">Año: {libro.año}</p>
+                <div key={libro.id} className="flex items-center justify-between p-3 border rounded-lg">
+                  <div className="flex-1">
+                    <p className="font-medium">{libro.titulo}</p>
+                    <div className="flex items-center gap-2 mt-1">
+                      <p className="text-sm text-muted-foreground">Año: {libro.anoPublicacion}</p>
+                      <span className="text-muted-foreground">•</span>
+                      <p className="text-sm text-muted-foreground">
+                        {libro.autores.map((autor) => autor.nombre).join(", ")}
+                      </p>
+                    </div>
+                    {libro.bibliotecas.length > 0 && (
+                      <p className="text-xs text-muted-foreground mt-1">
+                        En: {libro.bibliotecas.map((bib) => bib.nombre).join(", ")}
+                      </p>
+                    )}
+                  </div>
+                  <Badge variant="secondary">Libro</Badge>
                 </div>
               ))}
             </div>
           </div>
         )}
 
+        {/* Libraries Results */}
         {results.bibliotecas.length > 0 && (
           <div>
-            <h4 className="font-semibold text-gray-900 flex items-center gap-2 mb-2">
-              <Building className="h-4 w-4" />
-              Bibliotecas ({results.bibliotecas.length})
-            </h4>
+            <div className="flex items-center gap-2 mb-3">
+              <MapPin className="h-4 w-4 text-muted-foreground" />
+              <h3 className="font-semibold">Bibliotecas ({results.bibliotecas.length})</h3>
+            </div>
             <div className="space-y-2">
               {results.bibliotecas.map((biblioteca) => (
-                <div key={biblioteca.id} className="p-2 bg-gray-50 rounded">
-                  <p className="font-medium">{biblioteca.nombre}</p>
-                  <p className="text-sm text-gray-600">{biblioteca.ubicacion}</p>
+                <div key={biblioteca.id} className="flex items-center justify-between p-3 border rounded-lg">
+                  <div>
+                    <p className="font-medium">{biblioteca.nombre}</p>
+                    <p className="text-sm text-muted-foreground">{biblioteca.ubicacion}</p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {biblioteca.libros.length} {biblioteca.libros.length === 1 ? "libro" : "libros"} registrados
+                    </p>
+                  </div>
+                  <Badge variant="secondary">Biblioteca</Badge>
                 </div>
               ))}
             </div>

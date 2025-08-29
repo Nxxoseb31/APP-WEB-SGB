@@ -1,73 +1,76 @@
 "use client"
 
-import useSWR from "swr"
-import type { Biblioteca } from "@/types/entities"
+import { useState, useEffect } from "react"
+import type { Biblioteca, CreateBibliotecaDTO } from "@/types/entities"
 
-const fetcher = async (url: string) => {
-  const response = await fetch(url)
-  const data = await response.json()
-  if (!data.success) {
-    throw new Error(data.error)
-  }
-  return data.data
+interface UseLibrariesReturn {
+  bibliotecas: Biblioteca[]
+  loading: boolean
+  error: string | null
+  createBiblioteca: (data: CreateBibliotecaDTO) => Promise<void>
+  refreshBibliotecas: () => Promise<void>
 }
 
-export function useLibraries() {
-  const {
-    data: libraries = [],
-    error,
-    isLoading,
-    mutate: mutateLibraries,
-  } = useSWR<Biblioteca[]>("/api/bibliotecas", fetcher)
+export function useLibraries(): UseLibrariesReturn {
+  const [bibliotecas, setBibliotecas] = useState<Biblioteca[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
-  const createLibrary = async (libraryData: { nombre: string; ubicacion: string }) => {
+  const fetchBibliotecas = async () => {
     try {
+      setLoading(true)
+      setError(null)
+      const response = await fetch("/api/bibliotecas")
+      const result = await response.json()
+
+      if (!result.success) {
+        throw new Error(result.error || "Failed to fetch bibliotecas")
+      }
+
+      setBibliotecas(result.data)
+    } catch (err) {
+      console.error("Error fetching bibliotecas:", err)
+      setError(err instanceof Error ? err.message : "Failed to fetch bibliotecas")
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const createBiblioteca = async (data: CreateBibliotecaDTO) => {
+    try {
+      setError(null)
       const response = await fetch("/api/bibliotecas", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(libraryData),
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(data),
       })
-      const data = await response.json()
-      if (data.success) {
-        mutateLibraries([...libraries, data.data], false)
-        mutateLibraries()
-        return data.data
-      } else {
-        throw new Error(data.error)
+
+      const result = await response.json()
+
+      if (!result.success) {
+        throw new Error(result.error || "Failed to create biblioteca")
       }
+
+      // Refresh the list after creating
+      await fetchBibliotecas()
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : "Error al crear biblioteca"
-      throw new Error(errorMessage)
+      console.error("Error creating biblioteca:", err)
+      setError(err instanceof Error ? err.message : "Failed to create biblioteca")
+      throw err
     }
   }
 
-  const deleteLibrary = async (id: string) => {
-    try {
-      const response = await fetch(`/api/bibliotecas/${id}`, {
-        method: "DELETE",
-      })
-      const data = await response.json()
-      if (data.success) {
-        mutateLibraries(
-          libraries.filter((library) => library.id !== id),
-          false,
-        )
-        mutateLibraries()
-      } else {
-        throw new Error(data.error)
-      }
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : "Error al eliminar biblioteca"
-      throw new Error(errorMessage)
-    }
-  }
+  useEffect(() => {
+    fetchBibliotecas()
+  }, [])
 
   return {
-    libraries,
-    loading: isLoading,
-    error: error?.message || null,
-    createLibrary,
-    deleteLibrary,
-    refreshLibraries: () => mutateLibraries(),
+    bibliotecas,
+    loading,
+    error,
+    createBiblioteca,
+    refreshBibliotecas: fetchBibliotecas,
   }
 }

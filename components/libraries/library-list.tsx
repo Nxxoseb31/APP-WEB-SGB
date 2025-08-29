@@ -1,83 +1,103 @@
 "use client"
 
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
+import { ListSection } from "@/components/ui/list-section"
+import { EntityCard } from "@/components/ui/entity-card"
 import { Badge } from "@/components/ui/badge"
-import { Trash2, MapPin, Book } from "lucide-react"
-import { useLibraries } from "@/hooks/use-libraries"
+import { Skeleton } from "@/components/ui/skeleton"
+import { MapPin, BookOpen } from "lucide-react"
+import type { Biblioteca } from "@/types/entities"
 
-export function LibraryList() {
-  const { libraries, loading, error, deleteLibrary } = useLibraries()
+interface LibraryListProps {
+  bibliotecas: Biblioteca[]
+  loading?: boolean
+  error?: string | null
+}
 
-  const handleDelete = async (id: string, nombre: string) => {
-    if (confirm(`¿Estás seguro de que deseas eliminar la biblioteca "${nombre}"?`)) {
-      try {
-        await deleteLibrary(id)
-      } catch (error) {
-        // Error is handled by the hook
-      }
-    }
-  }
-
+export function LibraryList({ bibliotecas, loading = false, error }: LibraryListProps) {
   if (loading) {
     return (
-      <Card className="bg-white">
-        <CardContent className="p-6">
-          <p className="text-center text-gray-600">Cargando bibliotecas...</p>
-        </CardContent>
-      </Card>
+      <ListSection title="Lista de Bibliotecas" description="Bibliotecas registradas en el sistema">
+        <div className="space-y-4">
+          {[...Array(3)].map((_, i) => (
+            <div key={i} className="p-4 border rounded-lg">
+              <Skeleton className="h-5 w-3/4 mb-2" />
+              <Skeleton className="h-4 w-1/2 mb-2" />
+              <Skeleton className="h-4 w-2/3" />
+            </div>
+          ))}
+        </div>
+      </ListSection>
+    )
+  }
+
+  if (error) {
+    return (
+      <ListSection title="Lista de Bibliotecas" description="Bibliotecas registradas en el sistema">
+        <div className="text-center py-8 text-destructive">
+          <p>Error al cargar bibliotecas: {error}</p>
+        </div>
+      </ListSection>
     )
   }
 
   return (
-    <Card className="bg-white">
-      <CardHeader>
-        <CardTitle className="text-lg font-semibold">Lista de Bibliotecas</CardTitle>
-        <p className="text-sm text-gray-600">Bibliotecas registradas en el sistema</p>
-      </CardHeader>
-      <CardContent>
-        {error && <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded text-red-700 text-sm">{error}</div>}
-
-        {libraries.length === 0 ? (
-          <p className="text-gray-600 text-center py-4">No hay bibliotecas registradas</p>
-        ) : (
-          <div className="space-y-3">
-            {libraries.map((library) => (
-              <div key={library.id} className="border border-gray-200 rounded-lg p-4">
-                <div className="flex justify-between items-start">
-                  <div className="flex-1">
-                    <h3 className="font-semibold text-gray-900">{library.nombre}</h3>
-                    <div className="flex items-center gap-1 mt-1">
-                      <MapPin className="h-4 w-4 text-gray-500" />
-                      <p className="text-sm text-gray-600">{library.ubicacion}</p>
-                    </div>
-                    <div className="mt-2">
-                      <p className="text-sm text-gray-600">Libros registrados:</p>
-                      <div className="flex items-center gap-2 mt-1">
-                        <Badge variant="secondary" className="flex items-center gap-1">
-                          <Book className="h-3 w-3" />
-                          {library.libros.length} libro{library.libros.length !== 1 ? "s" : ""}
-                        </Badge>
-                      </div>
-                    </div>
-                    <p className="text-xs text-gray-500 mt-2">
-                      Registrada: {new Date(Number.parseInt(library.id)).toLocaleDateString("es-ES")}
-                    </p>
-                  </div>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => handleDelete(library.id, library.nombre)}
-                    className="text-black hover:text-gray-700 hover:bg-gray-100"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </div>
+    <ListSection
+      title="Lista de Bibliotecas"
+      description="Bibliotecas registradas en el sistema"
+      isEmpty={bibliotecas.length === 0}
+      emptyMessage="No hay bibliotecas registradas. Agrega la primera biblioteca usando el formulario."
+    >
+      <div className="space-y-4">
+        {bibliotecas.map((biblioteca) => (
+          <EntityCard key={biblioteca.id} showActions={false}>
+            <div className="space-y-3">
+              <div className="flex items-start justify-between">
+                <h3 className="font-semibold text-foreground text-lg">{biblioteca.nombre}</h3>
+                <Badge variant="outline" className="text-xs">
+                  <BookOpen className="h-3 w-3 mr-1" />
+                  {biblioteca.libros.length} {biblioteca.libros.length === 1 ? "libro" : "libros"}
+                </Badge>
               </div>
-            ))}
-          </div>
-        )}
-      </CardContent>
-    </Card>
+
+              <div className="flex items-center gap-2 text-muted-foreground">
+                <MapPin className="h-4 w-4" />
+                <span className="text-sm">{biblioteca.ubicacion}</span>
+              </div>
+
+              {biblioteca.libros.length > 0 && (
+                <div>
+                  <p className="text-sm text-muted-foreground mb-2">Libros registrados:</p>
+                  <div className="flex flex-wrap gap-1">
+                    {biblioteca.libros.slice(0, 3).map((libro) => (
+                      <Badge key={libro.id} variant="secondary" className="text-xs">
+                        {libro.titulo}
+                      </Badge>
+                    ))}
+                    {biblioteca.libros.length > 3 && (
+                      <Badge variant="secondary" className="text-xs">
+                        +{biblioteca.libros.length - 3} más
+                      </Badge>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {biblioteca.libros.length === 0 && (
+                <p className="text-xs text-muted-foreground">Sin libros registrados</p>
+              )}
+
+              <p className="text-xs text-muted-foreground">
+                Registrada:{" "}
+                {new Date(biblioteca.createdAt).toLocaleDateString("es-ES", {
+                  year: "numeric",
+                  month: "long",
+                  day: "numeric",
+                })}
+              </p>
+            </div>
+          </EntityCard>
+        ))}
+      </div>
+    </ListSection>
   )
 }

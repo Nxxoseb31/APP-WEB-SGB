@@ -1,46 +1,25 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { BibliotecaService } from "@/services/bibliotecaService"
+import type { CreateBibliotecaDTO } from "@/types/entities"
 
 export async function GET() {
   try {
     const bibliotecas = await BibliotecaService.getAllBibliotecas()
-    return NextResponse.json({
-      success: true,
-      data: bibliotecas,
-      error: null,
-    })
+    return NextResponse.json({ success: true, data: bibliotecas })
   } catch (error) {
-    return NextResponse.json(
-      {
-        success: false,
-        data: null,
-        error: error instanceof Error ? error.message : "Error interno del servidor",
-      },
-      { status: 500 },
-    )
+    console.error("GET /api/bibliotecas error:", error)
+    return NextResponse.json({ success: false, error: "Failed to fetch bibliotecas" }, { status: 500 })
   }
 }
 
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json()
+    const body: CreateBibliotecaDTO = await request.json()
     const biblioteca = await BibliotecaService.createBiblioteca(body)
-    return NextResponse.json(
-      {
-        success: true,
-        data: biblioteca,
-        error: null,
-      },
-      { status: 201 },
-    )
+    return NextResponse.json({ success: true, data: biblioteca }, { status: 201 })
   } catch (error) {
-    return NextResponse.json(
-      {
-        success: false,
-        data: null,
-        error: error instanceof Error ? error.message : "Error interno del servidor",
-      },
-      { status: 400 },
-    )
+    console.error("POST /api/bibliotecas error:", error)
+    const message = error instanceof Error ? error.message : "Failed to create biblioteca"
+    return NextResponse.json({ success: false, error: message }, { status: 400 })
   }
 }

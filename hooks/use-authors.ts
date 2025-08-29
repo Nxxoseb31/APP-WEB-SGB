@@ -1,68 +1,76 @@
 "use client"
 
-import useSWR from "swr"
-import type { Autor } from "@/types/entities"
+import { useState, useEffect } from "react"
+import type { Autor, CreateAutorDTO } from "@/types/entities"
 
-const fetcher = async (url: string) => {
-  const response = await fetch(url)
-  const data = await response.json()
-  if (!data.success) {
-    throw new Error(data.error)
-  }
-  return data.data
+interface UseAuthorsReturn {
+  autores: Autor[]
+  loading: boolean
+  error: string | null
+  createAutor: (data: CreateAutorDTO) => Promise<void>
+  refreshAutores: () => Promise<void>
 }
 
-export function useAuthors() {
-  const { data: authors = [], error, isLoading, mutate: mutateAuthors } = useSWR<Autor[]>("/api/autores", fetcher)
+export function useAuthors(): UseAuthorsReturn {
+  const [autores, setAutores] = useState<Autor[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
-  const createAuthor = async (authorData: { nombre: string; nacionalidad: string }) => {
+  const fetchAutores = async () => {
     try {
+      setLoading(true)
+      setError(null)
+      const response = await fetch("/api/autores")
+      const result = await response.json()
+
+      if (!result.success) {
+        throw new Error(result.error || "Failed to fetch autores")
+      }
+
+      setAutores(result.data)
+    } catch (err) {
+      console.error("Error fetching autores:", err)
+      setError(err instanceof Error ? err.message : "Failed to fetch autores")
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const createAutor = async (data: CreateAutorDTO) => {
+    try {
+      setError(null)
       const response = await fetch("/api/autores", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(authorData),
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(data),
       })
-      const data = await response.json()
-      if (data.success) {
-        mutateAuthors([...authors, data.data], false)
-        mutateAuthors()
-        return data.data
-      } else {
-        throw new Error(data.error)
+
+      const result = await response.json()
+
+      if (!result.success) {
+        throw new Error(result.error || "Failed to create autor")
       }
+
+      // Refresh the list after creating
+      await fetchAutores()
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : "Error al crear autor"
-      throw new Error(errorMessage)
+      console.error("Error creating autor:", err)
+      setError(err instanceof Error ? err.message : "Failed to create autor")
+      throw err
     }
   }
 
-  const deleteAuthor = async (id: string) => {
-    try {
-      const response = await fetch(`/api/autores/${id}`, {
-        method: "DELETE",
-      })
-      const data = await response.json()
-      if (data.success) {
-        mutateAuthors(
-          authors.filter((author) => author.id !== id),
-          false,
-        )
-        mutateAuthors()
-      } else {
-        throw new Error(data.error)
-      }
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : "Error al eliminar autor"
-      throw new Error(errorMessage)
-    }
-  }
+  useEffect(() => {
+    fetchAutores()
+  }, [])
 
   return {
-    authors,
-    loading: isLoading,
-    error: error?.message || null,
-    createAuthor,
-    deleteAuthor,
-    refreshAuthors: () => mutateAuthors(),
+    autores,
+    loading,
+    error,
+    createAutor,
+    refreshAutores: fetchAutores,
   }
 }

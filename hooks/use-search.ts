@@ -1,46 +1,58 @@
 "use client"
 
 import { useState } from "react"
-import type { SearchResults } from "@/types/entities"
+import type { SearchResult } from "@/types/entities"
 
-export function useSearch() {
-  const [results, setResults] = useState<SearchResults>({ autores: [], libros: [], bibliotecas: [] })
+interface UseSearchReturn {
+  searchResults: SearchResult | null
+  loading: boolean
+  error: string | null
+  performSearch: (query: string) => Promise<void>
+  clearSearch: () => void
+}
+
+export function useSearch(): UseSearchReturn {
+  const [searchResults, setSearchResults] = useState<SearchResult | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const search = async (query: string) => {
+  const performSearch = async (query: string) => {
     if (!query.trim()) {
-      setResults({ autores: [], libros: [], bibliotecas: [] })
+      setSearchResults(null)
       return
     }
 
-    setLoading(true)
-    setError(null)
     try {
-      const response = await fetch(`/api/search?q=${encodeURIComponent(query)}`)
-      const data = await response.json()
-      if (data.success) {
-        setResults(data.data)
-      } else {
-        setError(data.error)
+      setLoading(true)
+      setError(null)
+
+      const response = await fetch(`/api/search?q=${encodeURIComponent(query.trim())}`)
+      const result = await response.json()
+
+      if (!result.success) {
+        throw new Error(result.error || "Failed to perform search")
       }
+
+      setSearchResults(result.data)
     } catch (err) {
-      setError("Error en la búsqueda")
+      console.error("Error performing search:", err)
+      setError(err instanceof Error ? err.message : "Failed to perform search")
+      setSearchResults(null)
     } finally {
       setLoading(false)
     }
   }
 
-  const clearResults = () => {
-    setResults({ autores: [], libros: [], bibliotecas: [] })
+  const clearSearch = () => {
+    setSearchResults(null)
     setError(null)
   }
 
   return {
-    results,
+    searchResults,
     loading,
     error,
-    search,
-    clearResults,
+    performSearch,
+    clearSearch,
   }
 }

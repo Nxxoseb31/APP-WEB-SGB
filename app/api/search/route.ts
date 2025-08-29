@@ -1,33 +1,19 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { database } from "@/lib/database"
+import { db } from "@/lib/database"
 
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
     const query = searchParams.get("q")
 
-    if (!query) {
-      return NextResponse.json({
-        success: true,
-        data: { autores: [], libros: [], bibliotecas: [] },
-        error: null,
-      })
+    if (!query || query.trim().length === 0) {
+      return NextResponse.json({ success: false, error: "Query parameter is required" }, { status: 400 })
     }
 
-    const results = database.search(query)
-    return NextResponse.json({
-      success: true,
-      data: results,
-      error: null,
-    })
+    const results = db.search(query.trim())
+    return NextResponse.json({ success: true, data: results })
   } catch (error) {
-    return NextResponse.json(
-      {
-        success: false,
-        data: null,
-        error: error instanceof Error ? error.message : "Error interno del servidor",
-      },
-      { status: 500 },
-    )
+    console.error("GET /api/search error:", error)
+    return NextResponse.json({ success: false, error: "Failed to perform search" }, { status: 500 })
   }
 }

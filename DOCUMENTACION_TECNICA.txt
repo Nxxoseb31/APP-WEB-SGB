@@ -1,0 +1,464 @@
+================================================================================
+                    SISTEMA DE GESTION DE BIBLIOTECAS
+                         DOCUMENTACION TECNICA
+================================================================================
+
+DESCRIPCION DEL PROYECTO
+========================
+
+El Sistema de Gestión de Bibliotecas es una aplicación web full-stack desarrollada
+como prueba técnica para demostrar habilidades en desarrollo de software moderno.
+La aplicación permite administrar autores, libros y bibliotecas de forma eficiente,
+implementando relaciones complejas entre entidades y operaciones CRUD completas.
+
+OBJETIVOS PRINCIPALES
+=====================
+
+- Gestionar autores con nombre y nacionalidad
+- Registrar libros con título, año de publicación y autores asociados
+- Administrar bibliotecas con nombre, ubicación y libros disponibles
+- Implementar búsqueda global en todas las entidades
+- Mantener relaciones 1:N entre autores-libros y N:M entre libros-bibliotecas
+- Proporcionar una interfaz de usuario intuitiva y responsive
+
+ARQUITECTURA TECNICA
+====================
+
+STACK TECNOLOGICO:
+- Frontend: Next.js 15 con App Router
+- Backend: API Routes de Next.js
+- Base de Datos: Simulación en memoria (desarrollo/demo)
+- Lenguaje: TypeScript
+- Estilos: Tailwind CSS v4
+- Componentes UI: shadcn/ui
+- Tipografía: Geist Font
+
+PATRONES DE ARQUITECTURA:
+- Clean Architecture con separación de responsabilidades
+- Patrón Repository para acceso a datos
+- Custom Hooks para lógica de estado
+- Componentes reutilizables
+- API REST con validaciones
+
+ESTRUCTURA DE ARCHIVOS
+======================
+
+proyecto-biblioteca/
+├── app/
+│   ├── api/                    # Endpoints REST
+│   │   ├── autores/
+│   │   │   └── route.ts       # CRUD autores
+│   │   ├── libros/
+│   │   │   └── route.ts       # CRUD libros
+│   │   ├── bibliotecas/
+│   │   │   └── route.ts       # CRUD bibliotecas
+│   │   └── search/
+│   │       └── route.ts       # Búsqueda global
+│   ├── globals.css            # Estilos globales
+│   ├── layout.tsx             # Layout principal
+│   ├── loading.tsx            # Componente de carga
+│   └── page.tsx               # Página principal
+├── components/
+│   ├── ui/                    # Componentes base shadcn/ui
+│   ├── layout/                # Componentes de layout
+│   │   ├── header.tsx         # Header con título
+│   │   ├── navigation-tabs.tsx # Sistema de tabs
+│   │   └── search-bar.tsx     # Barra de búsqueda
+│   ├── authors/               # Componentes de autores
+│   │   ├── author-form.tsx    # Formulario de registro
+│   │   └── author-list.tsx    # Lista de autores
+│   ├── books/                 # Componentes de libros
+│   │   ├── book-form.tsx      # Formulario de registro
+│   │   └── book-list.tsx      # Lista de libros
+│   ├── libraries/             # Componentes de bibliotecas
+│   │   ├── library-form.tsx   # Formulario de registro
+│   │   └── library-list.tsx   # Lista de bibliotecas
+│   └── search/
+│       └── search-results.tsx # Resultados de búsqueda
+├── hooks/                     # Custom hooks
+│   ├── use-authors.ts         # Lógica de autores
+│   ├── use-books.ts           # Lógica de libros
+│   ├── use-libraries.ts       # Lógica de bibliotecas
+│   └── use-search.ts          # Lógica de búsqueda
+├── lib/
+│   ├── database.ts            # Gestor de base de datos
+│   └── utils.ts               # Utilidades generales
+├── services/                  # Servicios de negocio
+│   ├── autorService.ts        # Servicio de autores
+│   ├── libroService.ts        # Servicio de libros
+│   └── bibliotecaService.ts   # Servicio de bibliotecas
+├── types/
+│   └── entities.ts            # Definiciones de tipos
+└── public/                    # Archivos estáticos
+
+MODELO DE DATOS
+===============
+
+ENTIDADES PRINCIPALES:
+
+Autor:
+- id: string (UUID)
+- nombre: string (requerido)
+- nacionalidad: string (requerido)
+
+Libro:
+- id: string (UUID)
+- titulo: string (requerido)
+- año: number (requerido, 1000-2030)
+- autores: string[] (IDs de autores, mínimo 1)
+
+Biblioteca:
+- id: string (UUID)
+- nombre: string (requerido)
+- ubicacion: string (requerido)
+- libros: string[] (IDs de libros, opcional)
+
+RELACIONES:
+- Autores → Libros: 1:N (un autor puede tener múltiples libros)
+- Libros → Bibliotecas: N:M (un libro puede estar en múltiples bibliotecas)
+
+FUNCIONALIDADES IMPLEMENTADAS
+==============================
+
+GESTION DE AUTORES:
+- Crear nuevo autor (nombre, nacionalidad)
+- Listar todos los autores
+- Eliminar autor (con validación de libros asociados)
+- Búsqueda por nombre y nacionalidad
+
+GESTION DE LIBROS:
+- Crear nuevo libro (título, año, autores)
+- Listar todos los libros con autores asociados
+- Eliminar libro (limpia relaciones automáticamente)
+- Asociar libro con bibliotecas (opcional)
+- Búsqueda por título, año y autores
+
+GESTION DE BIBLIOTECAS:
+- Crear nueva biblioteca (nombre, ubicación)
+- Listar bibliotecas con conteo de libros
+- Eliminar biblioteca (limpia relaciones automáticamente)
+- Ver libros disponibles en cada biblioteca
+- Búsqueda por nombre y ubicación
+
+BUSQUEDA GLOBAL:
+- Búsqueda simultánea en todas las entidades
+- Resultados categorizados por tipo
+- Búsqueda por texto en todos los campos relevantes
+- Interfaz de resultados con navegación
+
+VALIDACIONES IMPLEMENTADAS
+===========================
+
+VALIDACIONES DE ENTRADA:
+- Campos requeridos no pueden estar vacíos
+- Año de publicación debe estar entre 1000-2030
+- Libro debe tener al menos un autor
+- IDs deben ser válidos y existir en la base de datos
+
+VALIDACIONES DE INTEGRIDAD:
+- No se puede eliminar autor con libros asociados
+- Eliminación de libro limpia referencias en bibliotecas
+- Eliminación de biblioteca limpia referencias en libros
+- Prevención de referencias circulares
+
+VALIDACIONES DE API:
+- Verificación de métodos HTTP permitidos
+- Validación de formato JSON en requests
+- Manejo de errores con códigos HTTP apropiados
+- Respuestas consistentes con estructura estándar
+
+API ENDPOINTS
+=============
+
+AUTORES:
+GET    /api/autores           # Listar todos los autores
+POST   /api/autores           # Crear nuevo autor
+DELETE /api/autores/[id]      # Eliminar autor por ID
+
+LIBROS:
+GET    /api/libros            # Listar todos los libros
+POST   /api/libros            # Crear nuevo libro
+DELETE /api/libros/[id]       # Eliminar libro por ID
+
+BIBLIOTECAS:
+GET    /api/bibliotecas       # Listar todas las bibliotecas
+POST   /api/bibliotecas       # Crear nueva biblioteca
+DELETE /api/bibliotecas/[id]  # Eliminar biblioteca por ID
+
+BUSQUEDA:
+GET    /api/search?q=[query]  # Búsqueda global
+
+ESTRUCTURA DE RESPUESTAS API:
+{
+  "success": boolean,
+  "data": any,
+  "error": string | null
+}
+
+COMPONENTES DE INTERFAZ
+=======================
+
+COMPONENTES DE LAYOUT:
+- Header: Título del sistema y búsqueda global
+- NavigationTabs: Sistema de tabs para navegar entre secciones
+- SearchBar: Barra de búsqueda con funcionalidad en tiempo real
+
+COMPONENTES DE FORMULARIO:
+- AuthorForm: Registro de autores (nombre, nacionalidad)
+- BookForm: Registro de libros (título, año, autores, bibliotecas)
+- LibraryForm: Registro de bibliotecas (nombre, ubicación)
+
+COMPONENTES DE LISTA:
+- AuthorList: Lista de autores con opciones de eliminación
+- BookList: Lista de libros con detalles de autores y bibliotecas
+- LibraryList: Lista de bibliotecas con conteo de libros
+
+COMPONENTES DE BUSQUEDA:
+- SearchResults: Resultados categorizados de búsqueda global
+
+HOOKS PERSONALIZADOS
+=====================
+
+useAuthors:
+- authors: Autor[] - Lista de autores
+- loading: boolean - Estado de carga
+- error: string | null - Errores
+- createAuthor: (data) => Promise - Crear autor
+- deleteAuthor: (id) => Promise - Eliminar autor
+- refreshAuthors: () => void - Recargar lista
+
+useBooks:
+- books: Libro[] - Lista de libros
+- loading: boolean - Estado de carga
+- error: string | null - Errores
+- createBook: (data) => Promise - Crear libro
+- deleteBook: (id) => Promise - Eliminar libro
+- refreshBooks: () => void - Recargar lista
+
+useLibraries:
+- libraries: Biblioteca[] - Lista de bibliotecas
+- loading: boolean - Estado de carga
+- error: string | null - Errores
+- createLibrary: (data) => Promise - Crear biblioteca
+- deleteLibrary: (id) => Promise - Eliminar biblioteca
+- refreshLibraries: () => void - Recargar lista
+
+useSearch:
+- results: SearchResults - Resultados de búsqueda
+- loading: boolean - Estado de carga
+- error: string | null - Errores
+- search: (query) => Promise - Ejecutar búsqueda
+- clearResults: () => void - Limpiar resultados
+
+SERVICIOS DE NEGOCIO
+====================
+
+AutorService:
+- getAllAutores(): Promise<Autor[]>
+- createAutor(data): Promise<Autor>
+- deleteAutor(id): Promise<void>
+
+LibroService:
+- getAllLibros(): Promise<Libro[]>
+- createLibro(data): Promise<Libro>
+- deleteLibro(id): Promise<void>
+
+BibliotecaService:
+- getAllBibliotecas(): Promise<Biblioteca[]>
+- createBiblioteca(data): Promise<Biblioteca>
+- deleteBiblioteca(id): Promise<void>
+
+MANEJO DE ERRORES
+=================
+
+TIPOS DE ERRORES:
+- Errores de validación (400 Bad Request)
+- Errores de entidad no encontrada (404 Not Found)
+- Errores de integridad referencial (409 Conflict)
+- Errores internos del servidor (500 Internal Server Error)
+
+ESTRATEGIAS DE MANEJO:
+- Try-catch en todos los endpoints API
+- Validación de entrada antes del procesamiento
+- Mensajes de error descriptivos para el usuario
+- Logging de errores para debugging
+
+ESTADOS DE CARGA:
+- Indicadores visuales durante operaciones
+- Deshabilitación de botones durante procesamiento
+- Mensajes de confirmación para operaciones exitosas
+
+INSTRUCCIONES DE USO
+====================
+
+NAVEGACION:
+1. Use los tabs "Autores", "Libros", "Bibliotecas" para navegar
+2. Cada sección tiene un formulario de registro y una lista
+3. Use la búsqueda global para encontrar elementos específicos
+
+REGISTRO DE AUTORES:
+1. Vaya a la pestaña "Autores"
+2. Complete nombre y nacionalidad
+3. Haga clic en "Registrar Autor"
+
+REGISTRO DE LIBROS:
+1. Vaya a la pestaña "Libros"
+2. Complete título y año de publicación
+3. Seleccione al menos un autor del dropdown
+4. Opcionalmente seleccione bibliotecas
+5. Haga clic en "Registrar Libro"
+
+REGISTRO DE BIBLIOTECAS:
+1. Vaya a la pestaña "Bibliotecas"
+2. Complete nombre y ubicación
+3. Haga clic en "Registrar Biblioteca"
+
+ELIMINACION DE ELEMENTOS:
+1. Encuentre el elemento en la lista correspondiente
+2. Haga clic en el botón de eliminar (icono de basura)
+3. Confirme la eliminación si se solicita
+
+BUSQUEDA GLOBAL:
+1. Use la barra de búsqueda en el header
+2. Escriba términos relacionados con autores, libros o bibliotecas
+3. Los resultados aparecerán categorizados por tipo
+
+DEPENDENCIAS DEL PROYECTO
+==========================
+
+DEPENDENCIAS DE PRODUCCION:
+- next: ^15.0.0 (Framework React full-stack)
+- react: ^19.0.0 (Biblioteca de UI)
+- react-dom: ^19.0.0 (Renderizado DOM)
+- typescript: ^5.0.0 (Tipado estático)
+- tailwindcss: ^4.0.0 (Framework CSS)
+- @radix-ui/react-*: Componentes UI base
+- lucide-react: Iconos
+- class-variance-authority: Utilidades CSS
+- clsx: Utilidades de clases CSS
+- tailwind-merge: Fusión de clases Tailwind
+
+DEPENDENCIAS DE DESARROLLO:
+- @types/node: Tipos para Node.js
+- @types/react: Tipos para React
+- @types/react-dom: Tipos para React DOM
+- eslint: Linter de código
+- eslint-config-next: Configuración ESLint para Next.js
+- postcss: Procesador CSS
+
+CONFIGURACION DEL PROYECTO
+===========================
+
+ARCHIVOS DE CONFIGURACION:
+- next.config.mjs: Configuración de Next.js
+- tsconfig.json: Configuración de TypeScript
+- tailwind.config.js: Configuración de Tailwind CSS
+- postcss.config.mjs: Configuración de PostCSS
+- components.json: Configuración de shadcn/ui
+- package.json: Dependencias y scripts
+
+SCRIPTS DISPONIBLES:
+- npm run dev: Servidor de desarrollo
+- npm run build: Construcción para producción
+- npm run start: Servidor de producción
+- npm run lint: Verificación de código
+
+CONSIDERACIONES DE DESARROLLO
+==============================
+
+MEJORES PRACTICAS IMPLEMENTADAS:
+- Separación clara de responsabilidades
+- Componentes reutilizables y modulares
+- Tipado estricto con TypeScript
+- Validaciones robustas en frontend y backend
+- Manejo consistente de errores
+- Código limpio y bien documentado
+
+PATRONES DE DISEÑO:
+- Repository Pattern para acceso a datos
+- Custom Hooks para lógica de estado
+- Composition over Inheritance
+- Single Responsibility Principle
+- DRY (Don't Repeat Yourself)
+
+ESCALABILIDAD:
+- Estructura modular permite fácil extensión
+- Servicios separados facilitan testing
+- API REST estándar permite integración externa
+- Base de datos abstracta permite cambio de implementación
+
+SEGURIDAD:
+- Validación de entrada en todos los endpoints
+- Sanitización de datos
+- Manejo seguro de errores sin exposición de información sensible
+- Tipado estricto previene errores de runtime
+
+RENDIMIENTO:
+- Componentes optimizados con React
+- Carga lazy de componentes cuando sea necesario
+- Minimización de re-renders innecesarios
+- Búsqueda eficiente con indexación
+
+TESTING:
+- Estructura preparada para unit testing
+- Servicios aislados facilitan testing
+- Hooks personalizados son testeable independientemente
+- API endpoints pueden ser probados individualmente
+
+DEPLOYMENT:
+- Configurado para deployment en Vercel
+- Build optimizado para producción
+- Variables de entorno configurables
+- Static generation donde sea posible
+
+FUTURAS MEJORAS SUGERIDAS
+==========================
+
+BASE DE DATOS:
+- Migrar a base de datos real (PostgreSQL, MySQL)
+- Implementar migraciones de esquema
+- Agregar índices para optimizar búsquedas
+- Implementar backup y recovery
+
+AUTENTICACION:
+- Sistema de login/registro
+- Roles de usuario (admin, bibliotecario, usuario)
+- Permisos granulares por funcionalidad
+- Sesiones seguras
+
+FUNCIONALIDADES ADICIONALES:
+- Préstamo y devolución de libros
+- Historial de transacciones
+- Reportes y estadísticas
+- Notificaciones por email
+- Sistema de reservas
+- Catálogo público para usuarios
+
+INTERFAZ DE USUARIO:
+- Tema oscuro/claro
+- Responsive design mejorado
+- Paginación para listas grandes
+- Filtros avanzados
+- Exportación de datos (PDF, Excel)
+- Dashboard con métricas
+
+INTEGRACIONES:
+- API externa para información de libros (ISBN)
+- Sistema de códigos de barras
+- Integración con bibliotecas digitales
+- Sincronización con otros sistemas
+
+MONITOREO:
+- Logging estructurado
+- Métricas de rendimiento
+- Alertas automáticas
+- Health checks
+
+================================================================================
+                              FIN DE DOCUMENTACION
+================================================================================
+
+Fecha de creación: Diciembre 2024
+Versión: 1.0
+Autor: Sistema de Gestión de Bibliotecas
+Tecnología: Next.js 15 + TypeScript + Tailwind CSS

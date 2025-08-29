@@ -1,68 +1,76 @@
 "use client"
 
-import useSWR from "swr"
-import type { Libro } from "@/types/entities"
+import { useState, useEffect } from "react"
+import type { Libro, CreateLibroDTO } from "@/types/entities"
 
-const fetcher = async (url: string) => {
-  const response = await fetch(url)
-  const data = await response.json()
-  if (!data.success) {
-    throw new Error(data.error)
-  }
-  return data.data
+interface UseBooksReturn {
+  libros: Libro[]
+  loading: boolean
+  error: string | null
+  createLibro: (data: CreateLibroDTO) => Promise<void>
+  refreshLibros: () => Promise<void>
 }
 
-export function useBooks() {
-  const { data: books = [], error, isLoading, mutate: mutateBooks } = useSWR<Libro[]>("/api/libros", fetcher)
+export function useBooks(): UseBooksReturn {
+  const [libros, setLibros] = useState<Libro[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
-  const createBook = async (bookData: { titulo: string; año: number; autores: string[] }) => {
+  const fetchLibros = async () => {
     try {
+      setLoading(true)
+      setError(null)
+      const response = await fetch("/api/libros")
+      const result = await response.json()
+
+      if (!result.success) {
+        throw new Error(result.error || "Failed to fetch libros")
+      }
+
+      setLibros(result.data)
+    } catch (err) {
+      console.error("Error fetching libros:", err)
+      setError(err instanceof Error ? err.message : "Failed to fetch libros")
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const createLibro = async (data: CreateLibroDTO) => {
+    try {
+      setError(null)
       const response = await fetch("/api/libros", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(bookData),
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(data),
       })
-      const data = await response.json()
-      if (data.success) {
-        mutateBooks([...books, data.data], false)
-        mutateBooks()
-        return data.data
-      } else {
-        throw new Error(data.error)
+
+      const result = await response.json()
+
+      if (!result.success) {
+        throw new Error(result.error || "Failed to create libro")
       }
+
+      // Refresh the list after creating
+      await fetchLibros()
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : "Error al crear libro"
-      throw new Error(errorMessage)
+      console.error("Error creating libro:", err)
+      setError(err instanceof Error ? err.message : "Failed to create libro")
+      throw err
     }
   }
 
-  const deleteBook = async (id: string) => {
-    try {
-      const response = await fetch(`/api/libros/${id}`, {
-        method: "DELETE",
-      })
-      const data = await response.json()
-      if (data.success) {
-        mutateBooks(
-          books.filter((book) => book.id !== id),
-          false,
-        )
-        mutateBooks()
-      } else {
-        throw new Error(data.error)
-      }
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : "Error al eliminar libro"
-      throw new Error(errorMessage)
-    }
-  }
+  useEffect(() => {
+    fetchLibros()
+  }, [])
 
   return {
-    books,
-    loading: isLoading,
-    error: error?.message || null,
-    createBook,
-    deleteBook,
-    refreshBooks: () => mutateBooks(),
+    libros,
+    loading,
+    error,
+    createLibro,
+    refreshLibros: fetchLibros,
   }
 }
