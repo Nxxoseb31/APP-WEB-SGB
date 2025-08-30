@@ -3,30 +3,23 @@
 import type React from "react"
 
 import { useState } from "react"
-import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { FormSection } from "@/components/ui/form-section"
+import { Button } from "@/components/ui/button"
+import { useAuthors } from "@/hooks/use-authors"
 import { useToast } from "@/hooks/use-toast"
-import type { CreateAutorDTO } from "@/types/entities"
 
-interface AuthorFormProps {
-  onSubmit: (data: CreateAutorDTO) => Promise<void>
-  loading?: boolean
-}
-
-export function AuthorForm({ onSubmit, loading = false }: AuthorFormProps) {
-  const [formData, setFormData] = useState<CreateAutorDTO>({
-    nombre: "",
-    nacionalidad: "",
-  })
-  const [isSubmitting, setIsSubmitting] = useState(false)
+export function AuthorForm() {
+  const [nombre, setNombre] = useState("")
+  const [nacionalidad, setNacionalidad] = useState("")
+  const { createAuthor, loading } = useAuthors()
   const { toast } = useToast()
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
-    if (!formData.nombre.trim() || !formData.nacionalidad.trim()) {
+    if (!nombre.trim() || !nacionalidad.trim()) {
       toast({
         title: "Error",
         description: "Todos los campos son requeridos",
@@ -36,12 +29,9 @@ export function AuthorForm({ onSubmit, loading = false }: AuthorFormProps) {
     }
 
     try {
-      setIsSubmitting(true)
-      await onSubmit(formData)
-
-      // Reset form on success
-      setFormData({ nombre: "", nacionalidad: "" })
-
+      await createAuthor({ nombre: nombre.trim(), nacionalidad: nacionalidad.trim() })
+      setNombre("")
+      setNacionalidad("")
       toast({
         title: "Éxito",
         description: "Autor registrado correctamente",
@@ -52,44 +42,46 @@ export function AuthorForm({ onSubmit, loading = false }: AuthorFormProps) {
         description: error instanceof Error ? error.message : "Error al registrar autor",
         variant: "destructive",
       })
-    } finally {
-      setIsSubmitting(false)
     }
   }
 
-  const handleInputChange = (field: keyof CreateAutorDTO, value: string) => {
-    setFormData((prev) => ({ ...prev, [field]: value }))
-  }
-
   return (
-    <FormSection title="Registrar Nuevo Autor" description="Agrega un nuevo autor al sistema">
-      <form onSubmit={handleSubmit} className="space-y-4">
-        <div className="space-y-2">
-          <Label htmlFor="nombre">Nombre</Label>
-          <Input
-            id="nombre"
-            placeholder="Nombre del autor"
-            value={formData.nombre}
-            onChange={(e) => handleInputChange("nombre", e.target.value)}
-            disabled={isSubmitting || loading}
-          />
-        </div>
+    <Card>
+      <CardHeader>
+        <CardTitle>Registrar Nuevo Autor</CardTitle>
+        <CardDescription>Agrega un nuevo autor al sistema</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="nombre">Nombre</Label>
+            <Input
+              id="nombre"
+              type="text"
+              placeholder="Nombre del autor"
+              value={nombre}
+              onChange={(e) => setNombre(e.target.value)}
+              disabled={loading}
+            />
+          </div>
 
-        <div className="space-y-2">
-          <Label htmlFor="nacionalidad">Nacionalidad</Label>
-          <Input
-            id="nacionalidad"
-            placeholder="Nacionalidad del autor"
-            value={formData.nacionalidad}
-            onChange={(e) => handleInputChange("nacionalidad", e.target.value)}
-            disabled={isSubmitting || loading}
-          />
-        </div>
+          <div className="space-y-2">
+            <Label htmlFor="nacionalidad">Nacionalidad</Label>
+            <Input
+              id="nacionalidad"
+              type="text"
+              placeholder="Nacionalidad del autor"
+              value={nacionalidad}
+              onChange={(e) => setNacionalidad(e.target.value)}
+              disabled={loading}
+            />
+          </div>
 
-        <Button type="submit" disabled={isSubmitting || loading} className="w-full">
-          {isSubmitting ? "Registrando..." : "Registrar Autor"}
-        </Button>
-      </form>
-    </FormSection>
+          <Button type="submit" disabled={loading} className="w-full">
+            {loading ? "Registrando..." : "Registrar Autor"}
+          </Button>
+        </form>
+      </CardContent>
+    </Card>
   )
 }

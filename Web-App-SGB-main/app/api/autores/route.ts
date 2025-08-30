@@ -1,25 +1,51 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { AutorService } from "@/services/autorService"
-import type { CreateAutorDTO } from "@/types/entities"
+import type { ApiResponse, Autor, CreateAutorData } from "@/types/entities"
 
-export async function GET() {
+export async function GET(): Promise<NextResponse<ApiResponse<Autor[]>>> {
   try {
     const autores = await AutorService.getAllAutores()
-    return NextResponse.json({ success: true, data: autores })
+    return NextResponse.json({
+      success: true,
+      data: autores,
+      error: null,
+    })
   } catch (error) {
-    console.error("GET /api/autores error:", error)
-    return NextResponse.json({ success: false, error: "Failed to fetch autores" }, { status: 500 })
+    console.error("[v0] Error fetching autores:", error)
+    return NextResponse.json(
+      {
+        success: false,
+        data: [],
+        error: error instanceof Error ? error.message : "Error interno del servidor",
+      },
+      { status: 500 },
+    )
   }
 }
 
-export async function POST(request: NextRequest) {
+export async function POST(request: NextRequest): Promise<NextResponse<ApiResponse<Autor>>> {
   try {
-    const body: CreateAutorDTO = await request.json()
+    const body: CreateAutorData = await request.json()
+
     const autor = await AutorService.createAutor(body)
-    return NextResponse.json({ success: true, data: autor }, { status: 201 })
+
+    return NextResponse.json(
+      {
+        success: true,
+        data: autor,
+        error: null,
+      },
+      { status: 201 },
+    )
   } catch (error) {
-    console.error("POST /api/autores error:", error)
-    const message = error instanceof Error ? error.message : "Failed to create autor"
-    return NextResponse.json({ success: false, error: message }, { status: 400 })
+    console.error("[v0] Error creating autor:", error)
+    return NextResponse.json(
+      {
+        success: false,
+        data: {} as Autor,
+        error: error instanceof Error ? error.message : "Error interno del servidor",
+      },
+      { status: 400 },
+    )
   }
 }

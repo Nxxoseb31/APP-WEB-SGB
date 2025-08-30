@@ -3,30 +3,23 @@
 import type React from "react"
 
 import { useState } from "react"
-import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { FormSection } from "@/components/ui/form-section"
+import { Button } from "@/components/ui/button"
+import { useLibraries } from "@/hooks/use-libraries"
 import { useToast } from "@/hooks/use-toast"
-import type { CreateBibliotecaDTO } from "@/types/entities"
 
-interface LibraryFormProps {
-  onSubmit: (data: CreateBibliotecaDTO) => Promise<void>
-  loading?: boolean
-}
-
-export function LibraryForm({ onSubmit, loading = false }: LibraryFormProps) {
-  const [formData, setFormData] = useState<CreateBibliotecaDTO>({
-    nombre: "",
-    ubicacion: "",
-  })
-  const [isSubmitting, setIsSubmitting] = useState(false)
+export function LibraryForm() {
+  const [nombre, setNombre] = useState("")
+  const [ubicacion, setUbicacion] = useState("")
+  const { createLibrary, loading } = useLibraries()
   const { toast } = useToast()
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
-    if (!formData.nombre.trim() || !formData.ubicacion.trim()) {
+    if (!nombre.trim() || !ubicacion.trim()) {
       toast({
         title: "Error",
         description: "Todos los campos son requeridos",
@@ -36,12 +29,9 @@ export function LibraryForm({ onSubmit, loading = false }: LibraryFormProps) {
     }
 
     try {
-      setIsSubmitting(true)
-      await onSubmit(formData)
-
-      // Reset form on success
-      setFormData({ nombre: "", ubicacion: "" })
-
+      await createLibrary({ nombre: nombre.trim(), ubicacion: ubicacion.trim() })
+      setNombre("")
+      setUbicacion("")
       toast({
         title: "Éxito",
         description: "Biblioteca registrada correctamente",
@@ -52,44 +42,46 @@ export function LibraryForm({ onSubmit, loading = false }: LibraryFormProps) {
         description: error instanceof Error ? error.message : "Error al registrar biblioteca",
         variant: "destructive",
       })
-    } finally {
-      setIsSubmitting(false)
     }
   }
 
-  const handleInputChange = (field: keyof CreateBibliotecaDTO, value: string) => {
-    setFormData((prev) => ({ ...prev, [field]: value }))
-  }
-
   return (
-    <FormSection title="Registrar Nueva Biblioteca" description="Agrega una nueva biblioteca al sistema">
-      <form onSubmit={handleSubmit} className="space-y-4">
-        <div className="space-y-2">
-          <Label htmlFor="nombre">Nombre</Label>
-          <Input
-            id="nombre"
-            placeholder="Nombre de la biblioteca"
-            value={formData.nombre}
-            onChange={(e) => handleInputChange("nombre", e.target.value)}
-            disabled={isSubmitting || loading}
-          />
-        </div>
+    <Card>
+      <CardHeader>
+        <CardTitle>Registrar Nueva Biblioteca</CardTitle>
+        <CardDescription>Agrega una nueva biblioteca al sistema</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="nombre">Nombre</Label>
+            <Input
+              id="nombre"
+              type="text"
+              placeholder="Nombre de la biblioteca"
+              value={nombre}
+              onChange={(e) => setNombre(e.target.value)}
+              disabled={loading}
+            />
+          </div>
 
-        <div className="space-y-2">
-          <Label htmlFor="ubicacion">Ubicación</Label>
-          <Input
-            id="ubicacion"
-            placeholder="Ubicación de la biblioteca"
-            value={formData.ubicacion}
-            onChange={(e) => handleInputChange("ubicacion", e.target.value)}
-            disabled={isSubmitting || loading}
-          />
-        </div>
+          <div className="space-y-2">
+            <Label htmlFor="ubicacion">Ubicación</Label>
+            <Input
+              id="ubicacion"
+              type="text"
+              placeholder="Ubicación de la biblioteca"
+              value={ubicacion}
+              onChange={(e) => setUbicacion(e.target.value)}
+              disabled={loading}
+            />
+          </div>
 
-        <Button type="submit" disabled={isSubmitting || loading} className="w-full">
-          {isSubmitting ? "Registrando..." : "Registrar Biblioteca"}
-        </Button>
-      </form>
-    </FormSection>
+          <Button type="submit" disabled={loading} className="w-full">
+            {loading ? "Registrando..." : "Registrar Biblioteca"}
+          </Button>
+        </form>
+      </CardContent>
+    </Card>
   )
 }

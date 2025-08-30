@@ -1,76 +1,115 @@
 "use client"
 
-import { useState, useEffect } from "react"
-import type { Biblioteca, CreateBibliotecaDTO } from "@/types/entities"
+import { useState, useCallback } from "react"
+import type { Biblioteca, CreateBibliotecaData, ApiResponse } from "@/types/entities"
+import { useDataContext } from "@/contexts/data-context"
 
-interface UseLibrariesReturn {
-  bibliotecas: Biblioteca[]
-  loading: boolean
-  error: string | null
-  createBiblioteca: (data: CreateBibliotecaDTO) => Promise<void>
-  refreshBibliotecas: () => Promise<void>
-}
-
-export function useLibraries(): UseLibrariesReturn {
-  const [bibliotecas, setBibliotecas] = useState<Biblioteca[]>([])
-  const [loading, setLoading] = useState(true)
+export function useLibraries() {
+  const { libraries, refreshLibraries, refreshAll } = useDataContext()
+  const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const fetchBibliotecas = async () => {
-    try {
+  const createLibrary = useCallback(
+    async (data: CreateBibliotecaData) => {
       setLoading(true)
       setError(null)
-      const response = await fetch("/api/bibliotecas")
-      const result = await response.json()
+      try {
+        const response = await fetch("/api/bibliotecas", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(data),
+        })
 
-      if (!result.success) {
-        throw new Error(result.error || "Failed to fetch bibliotecas")
+        const result: ApiResponse<Biblioteca> = await response.json()
+
+        if (result.success) {
+          await refreshAll()
+          return result.data
+        } else {
+          setError(result.error || "Error al crear biblioteca")
+          throw new Error(result.error || "Error al crear biblioteca")
+        }
+      } catch (err) {
+        const errorMessage = err instanceof Error ? err.message : "Error de conexión"
+        setError(errorMessage)
+        throw err
+      } finally {
+        setLoading(false)
       }
+    },
+    [refreshAll],
+  )
 
-      setBibliotecas(result.data)
-    } catch (err) {
-      console.error("Error fetching bibliotecas:", err)
-      setError(err instanceof Error ? err.message : "Failed to fetch bibliotecas")
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const createBiblioteca = async (data: CreateBibliotecaDTO) => {
-    try {
+  const updateLibrary = useCallback(
+    async (id: string, data: CreateBibliotecaData) => {
+      setLoading(true)
       setError(null)
-      const response = await fetch("/api/bibliotecas", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(data),
-      })
+      try {
+        const response = await fetch(`/api/bibliotecas/${id}`, {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(data),
+        })
 
-      const result = await response.json()
+        const result: ApiResponse<Biblioteca> = await response.json()
 
-      if (!result.success) {
-        throw new Error(result.error || "Failed to create biblioteca")
+        if (result.success) {
+          await refreshAll()
+          return result.data
+        } else {
+          setError(result.error || "Error al actualizar biblioteca")
+          throw new Error(result.error || "Error al actualizar biblioteca")
+        }
+      } catch (err) {
+        const errorMessage = err instanceof Error ? err.message : "Error de conexión"
+        setError(errorMessage)
+        throw err
+      } finally {
+        setLoading(false)
       }
+    },
+    [refreshAll],
+  )
 
-      // Refresh the list after creating
-      await fetchBibliotecas()
-    } catch (err) {
-      console.error("Error creating biblioteca:", err)
-      setError(err instanceof Error ? err.message : "Failed to create biblioteca")
-      throw err
-    }
-  }
+  const deleteLibrary = useCallback(
+    async (id: string) => {
+      setLoading(true)
+      setError(null)
+      try {
+        const response = await fetch(`/api/bibliotecas/${id}`, {
+          method: "DELETE",
+        })
 
-  useEffect(() => {
-    fetchBibliotecas()
-  }, [])
+        const result: ApiResponse<null> = await response.json()
+
+        if (result.success) {
+          await refreshAll()
+        } else {
+          setError(result.error || "Error al eliminar biblioteca")
+          throw new Error(result.error || "Error al eliminar biblioteca")
+        }
+      } catch (err) {
+        const errorMessage = err instanceof Error ? err.message : "Error de conexión"
+        setError(errorMessage)
+        throw err
+      } finally {
+        setLoading(false)
+      }
+    },
+    [refreshAll],
+  )
 
   return {
-    bibliotecas,
+    libraries,
     loading,
     error,
-    createBiblioteca,
-    refreshBibliotecas: fetchBibliotecas,
+    createLibrary,
+    updateLibrary,
+    deleteLibrary,
+    refreshLibraries,
   }
 }

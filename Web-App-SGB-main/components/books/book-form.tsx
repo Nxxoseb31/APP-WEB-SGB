@@ -2,112 +2,60 @@
 
 import type React from "react"
 
-import { useState, useEffect } from "react"
-import { Button } from "@/components/ui/button"
+import { useState } from "react"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { FormSection } from "@/components/ui/form-section"
+import { useBooks } from "@/hooks/use-books"
+import { useAuthors } from "@/hooks/use-authors"
+import { useLibraries } from "@/hooks/use-libraries"
 import { useToast } from "@/hooks/use-toast"
-import type { CreateLibroDTO, Autor, Biblioteca } from "@/types/entities"
 
-interface BookFormProps {
-  onSubmit: (data: CreateLibroDTO) => Promise<void>
-  loading?: boolean
-}
-
-export function BookForm({ onSubmit, loading = false }: BookFormProps) {
-  const [formData, setFormData] = useState<CreateLibroDTO>({
-    titulo: "",
-    anoPublicacion: new Date().getFullYear(),
-    autorIds: [],
-    bibliotecaIds: [],
-  })
-  const [autores, setAutores] = useState<Autor[]>([])
-  const [bibliotecas, setBibliotecas] = useState<Biblioteca[]>([])
-  const [isSubmitting, setIsSubmitting] = useState(false)
-  const [loadingData, setLoadingData] = useState(true)
+export function BookForm() {
+  const [titulo, setTitulo] = useState("")
+  const [año, setAño] = useState("")
+  const [selectedAuthors, setSelectedAuthors] = useState<string[]>([])
+  const [selectedLibraries, setSelectedLibraries] = useState<string[]>([])
+  const { createBook, loading } = useBooks()
+  const { authors } = useAuthors()
+  const { libraries } = useLibraries()
   const { toast } = useToast()
-
-  // Fetch autores and bibliotecas for dropdowns
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        setLoadingData(true)
-        console.log("[v0] Fetching autores and bibliotecas...")
-
-        const [autoresResponse, bibliotecasResponse] = await Promise.all([
-          fetch("/api/autores"),
-          fetch("/api/bibliotecas"),
-        ])
-
-        const autoresResult = await autoresResponse.json()
-        const bibliotecasResult = await bibliotecasResponse.json()
-
-        console.log("[v0] Autores result:", autoresResult)
-        console.log("[v0] Bibliotecas result:", bibliotecasResult)
-
-        if (autoresResult.success) {
-          setAutores(autoresResult.data)
-          console.log("[v0] Set autores:", autoresResult.data)
-        } else {
-          console.error("[v0] Failed to fetch autores:", autoresResult.error)
-        }
-
-        if (bibliotecasResult.success) {
-          setBibliotecas(bibliotecasResult.data)
-          console.log("[v0] Set bibliotecas:", bibliotecasResult.data)
-        } else {
-          console.error("[v0] Failed to fetch bibliotecas:", bibliotecasResult.error)
-        }
-      } catch (error) {
-        console.error("[v0] Error fetching data:", error)
-        toast({
-          title: "Error",
-          description: "Error al cargar datos para el formulario",
-          variant: "destructive",
-        })
-      } finally {
-        setLoadingData(false)
-      }
-    }
-
-    fetchData()
-  }, [toast])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
-    if (!formData.titulo.trim()) {
+    if (!titulo.trim() || !año.trim() || selectedAuthors.length === 0) {
       toast({
         title: "Error",
-        description: "El título es requerido",
+        description: "Título, año y al menos un autor son requeridos",
         variant: "destructive",
       })
       return
     }
 
-    if (formData.autorIds.length === 0) {
+    const añoNum = Number.parseInt(año)
+    if (isNaN(añoNum) || añoNum < 1000 || añoNum > 2030) {
       toast({
         title: "Error",
-        description: "Debe seleccionar al menos un autor",
+        description: "El año debe ser un número entre 1000 y 2030",
         variant: "destructive",
       })
       return
     }
 
     try {
-      setIsSubmitting(true)
-      await onSubmit(formData)
-
-      // Reset form on success
-      setFormData({
-        titulo: "",
-        anoPublicacion: new Date().getFullYear(),
-        autorIds: [],
-        bibliotecaIds: [],
+      await createBook({
+        titulo: titulo.trim(),
+        año: añoNum,
+        autores: selectedAuthors,
+        bibliotecas: selectedLibraries,
       })
-
+      setTitulo("")
+      setAño("")
+      setSelectedAuthors([])
+      setSelectedLibraries([])
       toast({
         title: "Éxito",
         description: "Libro registrado correctamente",
@@ -118,128 +66,161 @@ export function BookForm({ onSubmit, loading = false }: BookFormProps) {
         description: error instanceof Error ? error.message : "Error al registrar libro",
         variant: "destructive",
       })
-    } finally {
-      setIsSubmitting(false)
     }
   }
 
-  const handleInputChange = (field: keyof CreateLibroDTO, value: string | number | string[]) => {
-    setFormData((prev) => ({ ...prev, [field]: value }))
+  const handleAuthorSelect = (authorId: string) => {
+    if (!selectedAuthors.includes(authorId)) {
+      setSelectedAuthors([...selectedAuthors, authorId])
+    }
   }
 
-  const isFormDisabled = isSubmitting || loading || loadingData
+  const handleLibrarySelect = (libraryId: string) => {
+    if (!selectedLibraries.includes(libraryId)) {
+      setSelectedLibraries([...selectedLibraries, libraryId])
+    }
+  }
+
+  const removeAuthor = (authorId: string) => {
+    setSelectedAuthors(selectedAuthors.filter((id) => id !== authorId))
+  }
+
+  const removeLibrary = (libraryId: string) => {
+    setSelectedLibraries(selectedLibraries.filter((id) => id !== libraryId))
+  }
 
   return (
-    <FormSection title="Registrar Nuevo Libro" description="Agrega un nuevo libro al sistema">
-      <form onSubmit={handleSubmit} className="space-y-4">
-        <div className="space-y-2">
-          <Label htmlFor="titulo">Título</Label>
-          <Input
-            id="titulo"
-            placeholder="Título del libro"
-            value={formData.titulo}
-            onChange={(e) => handleInputChange("titulo", e.target.value)}
-            disabled={isFormDisabled}
-          />
-        </div>
+    <Card>
+      <CardHeader>
+        <CardTitle>Registrar Nuevo Libro</CardTitle>
+        <CardDescription>Agrega un nuevo libro al sistema</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="titulo">Título</Label>
+            <Input
+              id="titulo"
+              type="text"
+              placeholder="Título del libro"
+              value={titulo}
+              onChange={(e) => setTitulo(e.target.value)}
+              disabled={loading}
+            />
+          </div>
 
-        <div className="space-y-2">
-          <Label htmlFor="anoPublicacion">Año de Publicación</Label>
-          <Input
-            id="anoPublicacion"
-            type="number"
-            placeholder="Ej: 1967"
-            value={formData.anoPublicacion}
-            onChange={(e) => {
-              const year = Number.parseInt(e.target.value) || new Date().getFullYear()
-              handleInputChange("anoPublicacion", year)
-            }}
-            disabled={isFormDisabled}
-            min="1000"
-            max="2030"
-            step="1"
-          />
-          <p className="text-xs text-muted-foreground">Ingresa el año de publicación (ej: 1967, 1982, 2010)</p>
-        </div>
+          <div className="space-y-2">
+            <Label htmlFor="año">Año de Publicación</Label>
+            <Input
+              id="año"
+              type="number"
+              placeholder="Año (1000-2030)"
+              value={año}
+              onChange={(e) => setAño(e.target.value)}
+              disabled={loading}
+              min="1000"
+              max="2030"
+            />
+          </div>
 
-        <div className="space-y-2">
-          <Label htmlFor="autor">Autor</Label>
-          {loadingData ? (
-            <div className="text-sm text-muted-foreground">Cargando autores...</div>
-          ) : (
-            <Select
-              disabled={isFormDisabled || autores.length === 0}
-              onValueChange={(value) => {
-                console.log("[v0] Selected author:", value)
-                handleInputChange("autorIds", [value])
-              }}
-              value={formData.autorIds[0] || ""}
-            >
-              <SelectTrigger>
-                <SelectValue
-                  placeholder={autores.length === 0 ? "No hay autores disponibles" : "Selecciona un autor"}
-                />
-              </SelectTrigger>
-              <SelectContent>
-                {autores.map((autor) => (
-                  <SelectItem key={autor.id} value={autor.id}>
-                    {autor.nombre} ({autor.nacionalidad})
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          )}
-          {autores.length === 0 && !loadingData && (
-            <p className="text-sm text-muted-foreground">Primero debes registrar al menos un autor</p>
-          )}
-          {autores.length > 0 && (
-            <p className="text-xs text-muted-foreground">
-              {autores.length} autor{autores.length !== 1 ? "es" : ""} disponible{autores.length !== 1 ? "s" : ""}
-            </p>
-          )}
-        </div>
+          <div className="space-y-2">
+            <Label>Autores (requerido)</Label>
+            <div className="flex gap-2">
+              <Select onValueChange={handleAuthorSelect} disabled={loading}>
+                <SelectTrigger className="flex-1">
+                  <SelectValue placeholder="Seleccionar autor" />
+                </SelectTrigger>
+                <SelectContent>
+                  {authors
+                    .filter((author) => !selectedAuthors.includes(author.id))
+                    .map((author) => (
+                      <SelectItem key={author.id} value={author.id}>
+                        {author.nombre} ({author.nacionalidad})
+                      </SelectItem>
+                    ))}
+                </SelectContent>
+              </Select>
+              <div className="flex-1 min-h-[40px] border rounded-md p-2 bg-muted/50">
+                {selectedAuthors.length > 0 ? (
+                  <div className="flex flex-wrap gap-1">
+                    {selectedAuthors.map((authorId) => {
+                      const author = authors.find((a) => a.id === authorId)
+                      return author ? (
+                        <span
+                          key={authorId}
+                          className="inline-flex items-center gap-1 px-2 py-1 bg-primary text-primary-foreground text-xs rounded-md"
+                        >
+                          {author.nombre}
+                          <button
+                            type="button"
+                            onClick={() => removeAuthor(authorId)}
+                            className="hover:bg-primary/80 rounded-full w-4 h-4 flex items-center justify-center"
+                          >
+                            ×
+                          </button>
+                        </span>
+                      ) : null
+                    })}
+                  </div>
+                ) : (
+                  <span className="text-muted-foreground text-sm">Autores seleccionados aparecerán aquí</span>
+                )}
+              </div>
+            </div>
+          </div>
 
-        <div className="space-y-2">
-          <Label htmlFor="biblioteca">Biblioteca (Opcional)</Label>
-          {loadingData ? (
-            <div className="text-sm text-muted-foreground">Cargando bibliotecas...</div>
-          ) : (
-            <Select
-              disabled={isFormDisabled || bibliotecas.length === 0}
-              onValueChange={(value) => {
-                console.log("[v0] Selected biblioteca:", value)
-                handleInputChange("bibliotecaIds", value ? [value] : [])
-              }}
-              value={formData.bibliotecaIds?.[0] || ""}
-            >
-              <SelectTrigger>
-                <SelectValue
-                  placeholder={
-                    bibliotecas.length === 0 ? "No hay bibliotecas disponibles" : "Selecciona una biblioteca"
-                  }
-                />
-              </SelectTrigger>
-              <SelectContent>
-                {bibliotecas.map((biblioteca) => (
-                  <SelectItem key={biblioteca.id} value={biblioteca.id}>
-                    {biblioteca.nombre} - {biblioteca.ubicacion}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          )}
-          {bibliotecas.length > 0 && (
-            <p className="text-xs text-muted-foreground">
-              {bibliotecas.length} biblioteca{bibliotecas.length !== 1 ? "s" : ""} disponible
-              {bibliotecas.length !== 1 ? "s" : ""}
-            </p>
-          )}
-        </div>
+          <div className="space-y-2">
+            <Label>Bibliotecas (opcional)</Label>
+            <div className="flex gap-2">
+              <Select onValueChange={handleLibrarySelect} disabled={loading}>
+                <SelectTrigger className="flex-1">
+                  <SelectValue placeholder="Seleccionar biblioteca" />
+                </SelectTrigger>
+                <SelectContent>
+                  {libraries
+                    .filter((library) => !selectedLibraries.includes(library.id))
+                    .map((library) => (
+                      <SelectItem key={library.id} value={library.id}>
+                        {library.nombre} - {library.ubicacion}
+                      </SelectItem>
+                    ))}
+                </SelectContent>
+              </Select>
+              {/* Added selected libraries display to the right of selector */}
+              <div className="flex-1 min-h-[40px] border rounded-md p-2 bg-muted/50">
+                {selectedLibraries.length > 0 ? (
+                  <div className="flex flex-wrap gap-1">
+                    {selectedLibraries.map((libraryId) => {
+                      const library = libraries.find((l) => l.id === libraryId)
+                      return library ? (
+                        <span
+                          key={libraryId}
+                          className="inline-flex items-center gap-1 px-2 py-1 bg-primary text-primary-foreground text-xs rounded-md"
+                        >
+                          {library.nombre}
+                          <button
+                            type="button"
+                            onClick={() => removeLibrary(libraryId)}
+                            className="hover:bg-primary/80 rounded-full w-4 h-4 flex items-center justify-center"
+                          >
+                            ×
+                          </button>
+                        </span>
+                      ) : null
+                    })}
+                  </div>
+                ) : (
+                  <span className="text-muted-foreground text-sm">Bibliotecas seleccionadas aparecerán aquí</span>
+                )}
+              </div>
+            </div>
+          </div>
 
-        <Button type="submit" disabled={isFormDisabled || autores.length === 0} className="w-full">
-          {isSubmitting ? "Registrando..." : "Registrar Libro"}
-        </Button>
-      </form>
-    </FormSection>
+          <Button type="submit" disabled={loading} className="w-full">
+            {loading ? "Registrando..." : "Registrar Libro"}
+          </Button>
+        </form>
+      </CardContent>
+    </Card>
   )
 }

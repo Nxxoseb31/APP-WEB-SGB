@@ -1,76 +1,115 @@
 "use client"
 
-import { useState, useEffect } from "react"
-import type { Libro, CreateLibroDTO } from "@/types/entities"
+import { useState, useCallback } from "react"
+import type { Libro, CreateLibroData, ApiResponse } from "@/types/entities"
+import { useDataContext } from "@/contexts/data-context"
 
-interface UseBooksReturn {
-  libros: Libro[]
-  loading: boolean
-  error: string | null
-  createLibro: (data: CreateLibroDTO) => Promise<void>
-  refreshLibros: () => Promise<void>
-}
-
-export function useBooks(): UseBooksReturn {
-  const [libros, setLibros] = useState<Libro[]>([])
-  const [loading, setLoading] = useState(true)
+export function useBooks() {
+  const { books, refreshBooks, refreshAll } = useDataContext()
+  const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const fetchLibros = async () => {
-    try {
+  const createBook = useCallback(
+    async (data: CreateLibroData) => {
       setLoading(true)
       setError(null)
-      const response = await fetch("/api/libros")
-      const result = await response.json()
+      try {
+        const response = await fetch("/api/libros", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(data),
+        })
 
-      if (!result.success) {
-        throw new Error(result.error || "Failed to fetch libros")
+        const result: ApiResponse<Libro> = await response.json()
+
+        if (result.success) {
+          await refreshAll()
+          return result.data
+        } else {
+          setError(result.error || "Error al crear libro")
+          throw new Error(result.error || "Error al crear libro")
+        }
+      } catch (err) {
+        const errorMessage = err instanceof Error ? err.message : "Error de conexión"
+        setError(errorMessage)
+        throw err
+      } finally {
+        setLoading(false)
       }
+    },
+    [refreshAll],
+  )
 
-      setLibros(result.data)
-    } catch (err) {
-      console.error("Error fetching libros:", err)
-      setError(err instanceof Error ? err.message : "Failed to fetch libros")
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const createLibro = async (data: CreateLibroDTO) => {
-    try {
+  const updateBook = useCallback(
+    async (id: string, data: CreateLibroData) => {
+      setLoading(true)
       setError(null)
-      const response = await fetch("/api/libros", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(data),
-      })
+      try {
+        const response = await fetch(`/api/libros/${id}`, {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(data),
+        })
 
-      const result = await response.json()
+        const result: ApiResponse<Libro> = await response.json()
 
-      if (!result.success) {
-        throw new Error(result.error || "Failed to create libro")
+        if (result.success) {
+          await refreshAll()
+          return result.data
+        } else {
+          setError(result.error || "Error al actualizar libro")
+          throw new Error(result.error || "Error al actualizar libro")
+        }
+      } catch (err) {
+        const errorMessage = err instanceof Error ? err.message : "Error de conexión"
+        setError(errorMessage)
+        throw err
+      } finally {
+        setLoading(false)
       }
+    },
+    [refreshAll],
+  )
 
-      // Refresh the list after creating
-      await fetchLibros()
-    } catch (err) {
-      console.error("Error creating libro:", err)
-      setError(err instanceof Error ? err.message : "Failed to create libro")
-      throw err
-    }
-  }
+  const deleteBook = useCallback(
+    async (id: string) => {
+      setLoading(true)
+      setError(null)
+      try {
+        const response = await fetch(`/api/libros/${id}`, {
+          method: "DELETE",
+        })
 
-  useEffect(() => {
-    fetchLibros()
-  }, [])
+        const result: ApiResponse<null> = await response.json()
+
+        if (result.success) {
+          await refreshAll()
+        } else {
+          setError(result.error || "Error al eliminar libro")
+          throw new Error(result.error || "Error al eliminar libro")
+        }
+      } catch (err) {
+        const errorMessage = err instanceof Error ? err.message : "Error de conexión"
+        setError(errorMessage)
+        throw err
+      } finally {
+        setLoading(false)
+      }
+    },
+    [refreshAll],
+  )
 
   return {
-    libros,
+    books,
     loading,
     error,
-    createLibro,
-    refreshLibros: fetchLibros,
+    createBook,
+    updateBook,
+    deleteBook,
+    refreshBooks,
   }
 }

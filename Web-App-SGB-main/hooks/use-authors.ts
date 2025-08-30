@@ -1,76 +1,115 @@
 "use client"
 
-import { useState, useEffect } from "react"
-import type { Autor, CreateAutorDTO } from "@/types/entities"
+import { useState, useCallback } from "react"
+import type { Autor, CreateAutorData, ApiResponse } from "@/types/entities"
+import { useDataContext } from "@/contexts/data-context"
 
-interface UseAuthorsReturn {
-  autores: Autor[]
-  loading: boolean
-  error: string | null
-  createAutor: (data: CreateAutorDTO) => Promise<void>
-  refreshAutores: () => Promise<void>
-}
-
-export function useAuthors(): UseAuthorsReturn {
-  const [autores, setAutores] = useState<Autor[]>([])
-  const [loading, setLoading] = useState(true)
+export function useAuthors() {
+  const { authors, refreshAuthors, refreshAll } = useDataContext()
+  const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const fetchAutores = async () => {
-    try {
+  const createAuthor = useCallback(
+    async (data: CreateAutorData) => {
       setLoading(true)
       setError(null)
-      const response = await fetch("/api/autores")
-      const result = await response.json()
+      try {
+        const response = await fetch("/api/autores", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(data),
+        })
 
-      if (!result.success) {
-        throw new Error(result.error || "Failed to fetch autores")
+        const result: ApiResponse<Autor> = await response.json()
+
+        if (result.success) {
+          await refreshAll()
+          return result.data
+        } else {
+          setError(result.error || "Error al crear autor")
+          throw new Error(result.error || "Error al crear autor")
+        }
+      } catch (err) {
+        const errorMessage = err instanceof Error ? err.message : "Error de conexión"
+        setError(errorMessage)
+        throw err
+      } finally {
+        setLoading(false)
       }
+    },
+    [refreshAll],
+  )
 
-      setAutores(result.data)
-    } catch (err) {
-      console.error("Error fetching autores:", err)
-      setError(err instanceof Error ? err.message : "Failed to fetch autores")
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const createAutor = async (data: CreateAutorDTO) => {
-    try {
+  const updateAuthor = useCallback(
+    async (id: string, data: CreateAutorData) => {
+      setLoading(true)
       setError(null)
-      const response = await fetch("/api/autores", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(data),
-      })
+      try {
+        const response = await fetch(`/api/autores/${id}`, {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(data),
+        })
 
-      const result = await response.json()
+        const result: ApiResponse<Autor> = await response.json()
 
-      if (!result.success) {
-        throw new Error(result.error || "Failed to create autor")
+        if (result.success) {
+          await refreshAll()
+          return result.data
+        } else {
+          setError(result.error || "Error al actualizar autor")
+          throw new Error(result.error || "Error al actualizar autor")
+        }
+      } catch (err) {
+        const errorMessage = err instanceof Error ? err.message : "Error de conexión"
+        setError(errorMessage)
+        throw err
+      } finally {
+        setLoading(false)
       }
+    },
+    [refreshAll],
+  )
 
-      // Refresh the list after creating
-      await fetchAutores()
-    } catch (err) {
-      console.error("Error creating autor:", err)
-      setError(err instanceof Error ? err.message : "Failed to create autor")
-      throw err
-    }
-  }
+  const deleteAuthor = useCallback(
+    async (id: string) => {
+      setLoading(true)
+      setError(null)
+      try {
+        const response = await fetch(`/api/autores/${id}`, {
+          method: "DELETE",
+        })
 
-  useEffect(() => {
-    fetchAutores()
-  }, [])
+        const result: ApiResponse<null> = await response.json()
+
+        if (result.success) {
+          await refreshAll()
+        } else {
+          setError(result.error || "Error al eliminar autor")
+          throw new Error(result.error || "Error al eliminar autor")
+        }
+      } catch (err) {
+        const errorMessage = err instanceof Error ? err.message : "Error de conexión"
+        setError(errorMessage)
+        throw err
+      } finally {
+        setLoading(false)
+      }
+    },
+    [refreshAll],
+  )
 
   return {
-    autores,
+    authors,
     loading,
     error,
-    createAutor,
-    refreshAutores: fetchAutores,
+    createAuthor,
+    updateAuthor,
+    deleteAuthor,
+    refreshAuthors,
   }
 }
