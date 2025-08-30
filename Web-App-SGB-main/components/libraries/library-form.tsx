@@ -3,45 +3,25 @@
 import type React from "react"
 
 import { useState } from "react"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { useLibraries } from "@/hooks/use-libraries"
-import { useToast } from "@/hooks/use-toast"
 
 export function LibraryForm() {
-  const [nombre, setNombre] = useState("")
-  const [ubicacion, setUbicacion] = useState("")
-  const { createLibrary, loading } = useLibraries()
-  const { toast } = useToast()
+  const [name, setName] = useState("")
+  const [location, setLocation] = useState("")
+  const { createLibrary, loading, error } = useLibraries()
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (!name.trim() || !location.trim()) return
 
-    if (!nombre.trim() || !ubicacion.trim()) {
-      toast({
-        title: "Error",
-        description: "Todos los campos son requeridos",
-        variant: "destructive",
-      })
-      return
-    }
-
-    try {
-      await createLibrary({ nombre: nombre.trim(), ubicacion: ubicacion.trim() })
-      setNombre("")
-      setUbicacion("")
-      toast({
-        title: "Éxito",
-        description: "Biblioteca registrada correctamente",
-      })
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: error instanceof Error ? error.message : "Error al registrar biblioteca",
-        variant: "destructive",
-      })
+    const success = await createLibrary({ name: name.trim(), location: location.trim() })
+    if (success) {
+      setName("")
+      setLocation("")
     }
   }
 
@@ -53,31 +33,33 @@ export function LibraryForm() {
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="nombre">Nombre</Label>
+          <div>
+            <Label htmlFor="name">Nombre</Label>
             <Input
-              id="nombre"
+              id="name"
               type="text"
               placeholder="Nombre de la biblioteca"
-              value={nombre}
-              onChange={(e) => setNombre(e.target.value)}
-              disabled={loading}
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              required
             />
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="ubicacion">Ubicación</Label>
+          <div>
+            <Label htmlFor="location">Ubicación</Label>
             <Input
-              id="ubicacion"
+              id="location"
               type="text"
               placeholder="Ubicación de la biblioteca"
-              value={ubicacion}
-              onChange={(e) => setUbicacion(e.target.value)}
-              disabled={loading}
+              value={location}
+              onChange={(e) => setLocation(e.target.value)}
+              required
             />
           </div>
 
-          <Button type="submit" disabled={loading} className="w-full">
+          {error && <div className="text-red-600 text-sm">{error}</div>}
+
+          <Button type="submit" className="w-full" disabled={loading || !name.trim() || !location.trim()}>
             {loading ? "Registrando..." : "Registrar Biblioteca"}
           </Button>
         </form>

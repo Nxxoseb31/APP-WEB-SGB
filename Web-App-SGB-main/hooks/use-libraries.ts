@@ -1,107 +1,92 @@
 "use client"
 
-import { useState, useCallback } from "react"
-import type { Biblioteca, CreateBibliotecaData, ApiResponse } from "@/types/entities"
+import { useState, useEffect } from "react"
+import type { Library } from "@/types/entities"
 import { useDataContext } from "@/contexts/data-context"
 
 export function useLibraries() {
-  const { libraries, refreshLibraries, refreshAll } = useDataContext()
-  const [loading, setLoading] = useState(false)
+  const [libraries, setLibraries] = useState<Library[]>([])
+  const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const { librariesRefreshKey, refreshAll } = useDataContext()
 
-  const createLibrary = useCallback(
-    async (data: CreateBibliotecaData) => {
+  const fetchLibraries = async () => {
+    try {
       setLoading(true)
+      const response = await fetch("/api/libraries")
+      if (!response.ok) throw new Error("Error al cargar bibliotecas")
+      const data = await response.json()
+      setLibraries(data)
       setError(null)
-      try {
-        const response = await fetch("/api/bibliotecas", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(data),
-        })
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Error desconocido")
+    } finally {
+      setLoading(false)
+    }
+  }
 
-        const result: ApiResponse<Biblioteca> = await response.json()
-
-        if (result.success) {
-          await refreshAll()
-          return result.data
-        } else {
-          setError(result.error || "Error al crear biblioteca")
-          throw new Error(result.error || "Error al crear biblioteca")
-        }
-      } catch (err) {
-        const errorMessage = err instanceof Error ? err.message : "Error de conexión"
-        setError(errorMessage)
-        throw err
-      } finally {
-        setLoading(false)
+  const createLibrary = async (data: { name: string; location: string }) => {
+    try {
+      const response = await fetch("/api/libraries", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      })
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.error)
       }
-    },
-    [refreshAll],
-  )
+      refreshAll()
+      return true
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Error al crear biblioteca")
+      return false
+    }
+  }
 
-  const updateLibrary = useCallback(
-    async (id: string, data: CreateBibliotecaData) => {
-      setLoading(true)
-      setError(null)
-      try {
-        const response = await fetch(`/api/bibliotecas/${id}`, {
-          method: "PUT",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(data),
-        })
-
-        const result: ApiResponse<Biblioteca> = await response.json()
-
-        if (result.success) {
-          await refreshAll()
-          return result.data
-        } else {
-          setError(result.error || "Error al actualizar biblioteca")
-          throw new Error(result.error || "Error al actualizar biblioteca")
-        }
-      } catch (err) {
-        const errorMessage = err instanceof Error ? err.message : "Error de conexión"
-        setError(errorMessage)
-        throw err
-      } finally {
-        setLoading(false)
+  const updateLibrary = async (id: string, data: { name?: string; location?: string }) => {
+    try {
+      if (!data.name?.trim() && !data.location?.trim()) {
+        return await deleteLibrary(id)
       }
-    },
-    [refreshAll],
-  )
 
-  const deleteLibrary = useCallback(
-    async (id: string) => {
-      setLoading(true)
-      setError(null)
-      try {
-        const response = await fetch(`/api/bibliotecas/${id}`, {
-          method: "DELETE",
-        })
-
-        const result: ApiResponse<null> = await response.json()
-
-        if (result.success) {
-          await refreshAll()
-        } else {
-          setError(result.error || "Error al eliminar biblioteca")
-          throw new Error(result.error || "Error al eliminar biblioteca")
-        }
-      } catch (err) {
-        const errorMessage = err instanceof Error ? err.message : "Error de conexión"
-        setError(errorMessage)
-        throw err
-      } finally {
-        setLoading(false)
+      const response = await fetch(`/api/libraries?id=${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      })
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.error)
       }
-    },
-    [refreshAll],
-  )
+      refreshAll()
+      return true
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Error al actualizar biblioteca")
+      return false
+    }
+  }
+
+  const deleteLibrary = async (id: string) => {
+    try {
+      const response = await fetch(`/api/libraries?id=${id}`, {
+        method: "DELETE",
+      })
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.error)
+      }
+      refreshAll()
+      return true
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Error al eliminar biblioteca")
+      return false
+    }
+  }
+
+  useEffect(() => {
+    fetchLibraries()
+  }, [librariesRefreshKey])
 
   return {
     libraries,
@@ -110,6 +95,6 @@ export function useLibraries() {
     createLibrary,
     updateLibrary,
     deleteLibrary,
-    refreshLibraries,
+    refetch: fetchLibraries,
   }
 }

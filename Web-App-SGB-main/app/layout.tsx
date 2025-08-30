@@ -2,10 +2,9 @@ import type React from "react"
 import type { Metadata } from "next"
 import { GeistSans } from "geist/font/sans"
 import { GeistMono } from "geist/font/mono"
-import { Toaster } from "@/components/ui/toaster"
-import { Suspense } from "react"
-import { DataProvider } from "@/contexts/data-context"
 import "./globals.css"
+import { DataProvider } from "@/contexts/data-context"
+import { Suspense } from "react"
 
 export const metadata: Metadata = {
   title: "Sistema de Gestión de Bibliotecas",
@@ -15,15 +14,14 @@ export const metadata: Metadata = {
 
 export default function RootLayout({
   children,
-}: Readonly<{
+}: {
   children: React.ReactNode
-}>) {
+}) {
   return (
-    <html lang="es">
+    <html lang="es" className="antialiased">
       <body className={`font-sans ${GeistSans.variable} ${GeistMono.variable}`}>
-        <Suspense fallback={null}>
+        <Suspense fallback={<div>Loading...</div>}>
           <DataProvider>{children}</DataProvider>
-          <Toaster />
         </Suspense>
       </body>
     </html>

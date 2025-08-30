@@ -1,44 +1,18 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { database } from "@/lib/database"
-import type { ApiResponse, SearchResults } from "@/types/entities"
+import { db } from "@/lib/database"
 
-export async function GET(request: NextRequest): Promise<NextResponse<ApiResponse<SearchResults>>> {
+export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
-    const query = searchParams.get("q")
+    const query = searchParams.get("q") || ""
 
-    if (!query || query.trim().length === 0) {
-      return NextResponse.json({
-        success: true,
-        data: {
-          autores: [],
-          libros: [],
-          bibliotecas: [],
-        },
-        error: null,
-      })
+    if (query.length < 1 || query.length > 20) {
+      return NextResponse.json([])
     }
 
-    const results = database.search(query.trim())
-
-    return NextResponse.json({
-      success: true,
-      data: results,
-      error: null,
-    })
+    const results = db.search(query)
+    return NextResponse.json(results)
   } catch (error) {
-    console.error("[v0] Error searching:", error)
-    return NextResponse.json(
-      {
-        success: false,
-        data: {
-          autores: [],
-          libros: [],
-          bibliotecas: [],
-        },
-        error: error instanceof Error ? error.message : "Error interno del servidor",
-      },
-      { status: 500 },
-    )
+    return NextResponse.json({ error: "Error en la búsqueda" }, { status: 500 })
   }
 }

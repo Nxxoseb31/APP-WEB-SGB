@@ -3,45 +3,25 @@
 import type React from "react"
 
 import { useState } from "react"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { useAuthors } from "@/hooks/use-authors"
-import { useToast } from "@/hooks/use-toast"
 
 export function AuthorForm() {
-  const [nombre, setNombre] = useState("")
-  const [nacionalidad, setNacionalidad] = useState("")
-  const { createAuthor, loading } = useAuthors()
-  const { toast } = useToast()
+  const [name, setName] = useState("")
+  const [nationality, setNationality] = useState("")
+  const { createAuthor, loading, error } = useAuthors()
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (!name.trim() || !nationality.trim()) return
 
-    if (!nombre.trim() || !nacionalidad.trim()) {
-      toast({
-        title: "Error",
-        description: "Todos los campos son requeridos",
-        variant: "destructive",
-      })
-      return
-    }
-
-    try {
-      await createAuthor({ nombre: nombre.trim(), nacionalidad: nacionalidad.trim() })
-      setNombre("")
-      setNacionalidad("")
-      toast({
-        title: "Éxito",
-        description: "Autor registrado correctamente",
-      })
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: error instanceof Error ? error.message : "Error al registrar autor",
-        variant: "destructive",
-      })
+    const success = await createAuthor({ name: name.trim(), nationality: nationality.trim() })
+    if (success) {
+      setName("")
+      setNationality("")
     }
   }
 
@@ -53,31 +33,33 @@ export function AuthorForm() {
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="nombre">Nombre</Label>
+          <div>
+            <Label htmlFor="name">Nombre</Label>
             <Input
-              id="nombre"
+              id="name"
               type="text"
               placeholder="Nombre del autor"
-              value={nombre}
-              onChange={(e) => setNombre(e.target.value)}
-              disabled={loading}
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              required
             />
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="nacionalidad">Nacionalidad</Label>
+          <div>
+            <Label htmlFor="nationality">Nacionalidad</Label>
             <Input
-              id="nacionalidad"
+              id="nationality"
               type="text"
               placeholder="Nacionalidad del autor"
-              value={nacionalidad}
-              onChange={(e) => setNacionalidad(e.target.value)}
-              disabled={loading}
+              value={nationality}
+              onChange={(e) => setNationality(e.target.value)}
+              required
             />
           </div>
 
-          <Button type="submit" disabled={loading} className="w-full">
+          {error && <div className="text-red-600 text-sm">{error}</div>}
+
+          <Button type="submit" className="w-full" disabled={loading || !name.trim() || !nationality.trim()}>
             {loading ? "Registrando..." : "Registrar Autor"}
           </Button>
         </form>

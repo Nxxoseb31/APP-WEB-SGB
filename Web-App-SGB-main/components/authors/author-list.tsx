@@ -2,148 +2,158 @@
 
 import type React from "react"
 
-import { Trash2, Edit } from "lucide-react"
 import { useState } from "react"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Edit, Trash2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { useAuthors } from "@/hooks/use-authors"
-import { useToast } from "@/hooks/use-toast"
-import type { Autor } from "@/types/entities"
+import type { Author } from "@/types/entities"
 
 export function AuthorList() {
-  const { authors, loading, deleteAuthor, updateAuthor } = useAuthors()
-  const { toast } = useToast()
-  const [editingAuthor, setEditingAuthor] = useState<Autor | null>(null)
-  const [editForm, setEditForm] = useState({ nombre: "", nacionalidad: "" })
-  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
+  const { authors, loading, error, updateAuthor, deleteAuthor } = useAuthors()
+  const [editingAuthor, setEditingAuthor] = useState<Author | null>(null)
+  const [editName, setEditName] = useState("")
+  const [editNationality, setEditNationality] = useState("")
 
-  const handleDelete = async (id: string, nombre: string) => {
-    if (window.confirm(`¿Estás seguro de que deseas eliminar al autor "${nombre}"?`)) {
-      try {
-        await deleteAuthor(id)
-        toast({
-          title: "Éxito",
-          description: "Autor eliminado correctamente",
-        })
-      } catch (error) {
-        toast({
-          title: "Error",
-          description: error instanceof Error ? error.message : "Error al eliminar autor",
-          variant: "destructive",
-        })
+  const handleEdit = (author: Author) => {
+    setEditingAuthor(author)
+    setEditName(author.name)
+    setEditNationality(author.nationality)
+  }
+
+  const handleUpdate = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!editingAuthor || !editName.trim() || !editNationality.trim()) return
+
+    const success = await updateAuthor(editingAuthor.id, {
+      name: editName.trim(),
+      nationality: editNationality.trim(),
+    })
+
+    if (success) {
+      setEditingAuthor(null)
+      setEditName("")
+      setEditNationality("")
+    }
+  }
+
+  const handleDelete = async (id: string) => {
+    if (confirm("¿Estás seguro de que quieres eliminar este autor? Se eliminará de todos los libros asociados.")) {
+      const success = await deleteAuthor(id)
+      if (success && editingAuthor?.id === id) {
+        setEditingAuthor(null)
+        setEditName("")
+        setEditNationality("")
       }
     }
   }
 
-  const handleEdit = (autor: Autor) => {
-    setEditingAuthor(autor)
-    setEditForm({ nombre: autor.nombre, nacionalidad: autor.nacionalidad })
-    setIsEditDialogOpen(true)
+  const handleCloseEdit = () => {
+    setEditingAuthor(null)
+    setEditName("")
+    setEditNationality("")
   }
 
-  const handleUpdateSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!editingAuthor) return
-
-    try {
-      await updateAuthor(editingAuthor.id, editForm)
-      setIsEditDialogOpen(false)
-      setEditingAuthor(null)
-      toast({
-        title: "Éxito",
-        description: "Autor actualizado correctamente",
-      })
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: error instanceof Error ? error.message : "Error al actualizar autor",
-        variant: "destructive",
-      })
-    }
+  if (loading) {
+    return <div className="text-center py-8">Cargando autores...</div>
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Lista de Autores</CardTitle>
-        <CardDescription>Autores registrados en el sistema</CardDescription>
-      </CardHeader>
-      <CardContent>
-        {loading ? (
-          <p className="text-muted-foreground">Cargando autores...</p>
-        ) : authors.length === 0 ? (
-          <p className="text-muted-foreground">No hay autores registrados</p>
-        ) : (
-          <div className="space-y-4">
-            {authors.map((autor) => (
-              <div key={autor.id} className="flex items-center justify-between p-4 border border-border rounded-lg">
-                <div>
-                  <h3 className="font-semibold text-foreground">{autor.nombre}</h3>
-                  <p className="text-sm text-muted-foreground">{autor.nacionalidad}</p>
-                  {autor.fechaRegistro && (
-                    <p className="text-xs text-muted-foreground">Registrado: {autor.fechaRegistro}</p>
-                  )}
-                </div>
-                <div className="flex gap-2">
-                  <Button variant="outline" size="sm" onClick={() => handleEdit(autor)} disabled={loading}>
-                    <Edit className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    variant="destructive"
-                    size="sm"
-                    onClick={() => handleDelete(autor.id, autor.nombre)}
-                    disabled={loading}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
+    <>
+      <Card>
+        <CardHeader>
+          <CardTitle>Lista de Autores</CardTitle>
+          <CardDescription>Autores registrados en el sistema</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {error && <div className="text-red-600 text-sm mb-4">{error}</div>}
 
-        <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Editar Autor</DialogTitle>
-              <DialogDescription>Modifica la información del autor</DialogDescription>
-            </DialogHeader>
-            <form onSubmit={handleUpdateSubmit} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="edit-nombre">Nombre</Label>
-                <Input
-                  id="edit-nombre"
-                  type="text"
-                  value={editForm.nombre}
-                  onChange={(e) => setEditForm({ ...editForm, nombre: e.target.value })}
-                  disabled={loading}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="edit-nacionalidad">Nacionalidad</Label>
-                <Input
-                  id="edit-nacionalidad"
-                  type="text"
-                  value={editForm.nacionalidad}
-                  onChange={(e) => setEditForm({ ...editForm, nacionalidad: e.target.value })}
-                  disabled={loading}
-                />
-              </div>
-              <div className="flex gap-2 justify-end">
-                <Button type="button" variant="outline" onClick={() => setIsEditDialogOpen(false)}>
-                  Cancelar
-                </Button>
-                <Button type="submit" disabled={loading}>
-                  {loading ? "Actualizando..." : "Actualizar"}
-                </Button>
-              </div>
-            </form>
-          </DialogContent>
-        </Dialog>
-      </CardContent>
-    </Card>
+          {authors.length === 0 ? (
+            <div className="text-center py-8 text-gray-500">No hay autores registrados</div>
+          ) : (
+            <div className="space-y-3">
+              {authors.map((author) => (
+                <div
+                  key={author.id}
+                  className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50 transition-colors"
+                >
+                  <div className="flex-1">
+                    <h3 className="font-medium">{author.name}</h3>
+                    <p className="text-sm text-gray-600">{author.nationality}</p>
+                    <p className="text-xs text-gray-400">
+                      Registrado: {new Date(author.createdAt).toLocaleDateString()}
+                    </p>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button variant="outline" size="sm" onClick={() => handleEdit(author)}>
+                      <Edit className="h-4 w-4" />
+                    </Button>
+                    <Button variant="destructive" size="sm" onClick={() => handleDelete(author.id)}>
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <Dialog open={!!editingAuthor} onOpenChange={handleCloseEdit}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Editar Autor</DialogTitle>
+          </DialogHeader>
+
+          <form onSubmit={handleUpdate} className="space-y-4">
+            <div>
+              <Label htmlFor="edit-name">Nombre</Label>
+              <Input
+                id="edit-name"
+                type="text"
+                value={editName}
+                onChange={(e) => setEditName(e.target.value)}
+                required
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="edit-nationality">Nacionalidad</Label>
+              <Input
+                id="edit-nationality"
+                type="text"
+                value={editNationality}
+                onChange={(e) => setEditNationality(e.target.value)}
+                required
+              />
+            </div>
+
+            <div className="flex gap-2 pt-4">
+              <Button type="button" variant="outline" onClick={handleCloseEdit} className="flex-1 bg-transparent">
+                Cancelar
+              </Button>
+              <Button
+                type="submit"
+                className="flex-1"
+                disabled={!editName.trim() || !editNationality.trim()}
+                onClick={async (e) => {
+                  if (!editName.trim() && !editNationality.trim()) {
+                    e.preventDefault()
+                    if (confirm("Los campos están vacíos. ¿Deseas eliminar este autor?")) {
+                      await handleDelete(editingAuthor!.id)
+                    }
+                  }
+                }}
+              >
+                Actualizar
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
+    </>
   )
 }

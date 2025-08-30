@@ -1,171 +1,162 @@
 "use client"
 
+import type React from "react"
+
 import { useState } from "react"
-import { Building2, Edit, Trash2 } from "lucide-react"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Edit, Trash2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { useLibraries } from "@/hooks/use-libraries"
-import { useToast } from "@/hooks/use-toast"
-import type { Biblioteca } from "@/types/entities"
+import type { Library } from "@/types/entities"
 
 export function LibraryList() {
-  const { libraries, loading, deleteLibrary, updateLibrary } = useLibraries()
-  const { toast } = useToast()
-  const [editingLibrary, setEditingLibrary] = useState<Biblioteca | null>(null)
-  const [editForm, setEditForm] = useState({
-    nombre: "",
-    ubicacion: "",
-  })
+  const { libraries, loading, error, updateLibrary, deleteLibrary } = useLibraries()
+  const [editingLibrary, setEditingLibrary] = useState<Library | null>(null)
+  const [editName, setEditName] = useState("")
+  const [editLocation, setEditLocation] = useState("")
 
-  const handleEdit = (library: Biblioteca) => {
+  const handleEdit = (library: Library) => {
     setEditingLibrary(library)
-    setEditForm({
-      nombre: library.nombre,
-      ubicacion: library.ubicacion,
+    setEditName(library.name)
+    setEditLocation(library.location)
+  }
+
+  const handleUpdate = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!editingLibrary || !editName.trim() || !editLocation.trim()) return
+
+    const success = await updateLibrary(editingLibrary.id, {
+      name: editName.trim(),
+      location: editLocation.trim(),
     })
-  }
 
-  const handleUpdate = async () => {
-    if (!editingLibrary) return
-
-    if (!editForm.nombre.trim() || !editForm.ubicacion.trim()) {
-      toast({
-        title: "Error",
-        description: "Nombre y ubicación son requeridos",
-        variant: "destructive",
-      })
-      return
-    }
-
-    try {
-      await updateLibrary(editingLibrary.id, {
-        nombre: editForm.nombre.trim(),
-        ubicacion: editForm.ubicacion.trim(),
-      })
+    if (success) {
       setEditingLibrary(null)
-      toast({
-        title: "Éxito",
-        description: "Biblioteca actualizada correctamente",
-      })
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: error instanceof Error ? error.message : "Error al actualizar biblioteca",
-        variant: "destructive",
-      })
+      setEditName("")
+      setEditLocation("")
     }
   }
 
-  const handleDelete = async (id: string, nombre: string) => {
-    if (window.confirm(`¿Estás seguro de que deseas eliminar la biblioteca "${nombre}"?`)) {
-      try {
-        await deleteLibrary(id)
-        toast({
-          title: "Éxito",
-          description: "Biblioteca eliminada correctamente",
-        })
-      } catch (error) {
-        toast({
-          title: "Error",
-          description: error instanceof Error ? error.message : "Error al eliminar biblioteca",
-          variant: "destructive",
-        })
+  const handleDelete = async (id: string) => {
+    if (confirm("¿Estás seguro de que quieres eliminar esta biblioteca? Se eliminará de todos los libros asociados.")) {
+      const success = await deleteLibrary(id)
+      if (success && editingLibrary?.id === id) {
+        setEditingLibrary(null)
+        setEditName("")
+        setEditLocation("")
       }
     }
   }
 
+  const handleCloseEdit = () => {
+    setEditingLibrary(null)
+    setEditName("")
+    setEditLocation("")
+  }
+
+  if (loading) {
+    return <div className="text-center py-8">Cargando bibliotecas...</div>
+  }
+
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Lista de Bibliotecas</CardTitle>
-        <CardDescription>Bibliotecas registradas en el sistema</CardDescription>
-      </CardHeader>
-      <CardContent>
-        {loading ? (
-          <p className="text-muted-foreground">Cargando bibliotecas...</p>
-        ) : libraries.length === 0 ? (
-          <p className="text-muted-foreground">No hay bibliotecas registradas</p>
-        ) : (
-          <div className="space-y-4">
-            {libraries.map((biblioteca) => (
-              <div key={biblioteca.id} className="border border-border rounded-lg p-4">
-                <div className="flex items-start justify-between">
+    <>
+      <Card>
+        <CardHeader>
+          <CardTitle>Lista de Bibliotecas</CardTitle>
+          <CardDescription>Bibliotecas registradas en el sistema</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {error && <div className="text-red-600 text-sm mb-4">{error}</div>}
+
+          {libraries.length === 0 ? (
+            <div className="text-center py-8 text-gray-500">No hay bibliotecas registradas</div>
+          ) : (
+            <div className="space-y-3">
+              {libraries.map((library) => (
+                <div
+                  key={library.id}
+                  className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50 transition-colors"
+                >
                   <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-2">
-                      <Building2 className="h-4 w-4 text-primary" />
-                      <h3 className="font-semibold text-foreground">{biblioteca.nombre}</h3>
-                      <Badge variant="outline">
-                        {biblioteca.libros?.length || 0} libro{biblioteca.libros?.length !== 1 ? "s" : ""}
-                      </Badge>
-                    </div>
-                    <p className="text-sm text-muted-foreground mb-2">
-                      <strong>Ubicación:</strong> {biblioteca.ubicacion}
+                    <h3 className="font-medium">{library.name}</h3>
+                    <p className="text-sm text-gray-600">{library.location}</p>
+                    <p className="text-xs text-gray-400">
+                      Registrado: {new Date(library.createdAt).toLocaleDateString()}
                     </p>
-                    {biblioteca.fechaRegistro && (
-                      <p className="text-xs text-muted-foreground">Registrado: {biblioteca.fechaRegistro}</p>
-                    )}
+                    <p className="text-xs text-gray-500">
+                      {library.books.length} libro{library.books.length !== 1 ? "s" : ""}
+                    </p>
                   </div>
                   <div className="flex gap-2">
-                    <Dialog
-                      open={editingLibrary?.id === biblioteca.id}
-                      onOpenChange={(open) => !open && setEditingLibrary(null)}
-                    >
-                      <DialogTrigger asChild>
-                        <Button variant="outline" size="sm" onClick={() => handleEdit(biblioteca)} disabled={loading}>
-                          <Edit className="h-4 w-4" />
-                        </Button>
-                      </DialogTrigger>
-                      <DialogContent className="max-w-md">
-                        <DialogHeader>
-                          <DialogTitle>Editar Biblioteca</DialogTitle>
-                        </DialogHeader>
-                        <div className="space-y-4">
-                          <div className="space-y-2">
-                            <Label htmlFor="edit-nombre">Nombre</Label>
-                            <Input
-                              id="edit-nombre"
-                              value={editForm.nombre}
-                              onChange={(e) => setEditForm((prev) => ({ ...prev, nombre: e.target.value }))}
-                            />
-                          </div>
-                          <div className="space-y-2">
-                            <Label htmlFor="edit-ubicacion">Ubicación</Label>
-                            <Input
-                              id="edit-ubicacion"
-                              value={editForm.ubicacion}
-                              onChange={(e) => setEditForm((prev) => ({ ...prev, ubicacion: e.target.value }))}
-                            />
-                          </div>
-                          <div className="flex gap-2">
-                            <Button onClick={handleUpdate} className="flex-1">
-                              Actualizar
-                            </Button>
-                            <Button variant="outline" onClick={() => setEditingLibrary(null)} className="flex-1">
-                              Cancelar
-                            </Button>
-                          </div>
-                        </div>
-                      </DialogContent>
-                    </Dialog>
-                    <Button
-                      variant="destructive"
-                      size="sm"
-                      onClick={() => handleDelete(biblioteca.id, biblioteca.nombre)}
-                      disabled={loading}
-                    >
+                    <Button variant="outline" size="sm" onClick={() => handleEdit(library)}>
+                      <Edit className="h-4 w-4" />
+                    </Button>
+                    <Button variant="destructive" size="sm" onClick={() => handleDelete(library.id)}>
                       <Trash2 className="h-4 w-4" />
                     </Button>
                   </div>
                 </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </CardContent>
-    </Card>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <Dialog open={!!editingLibrary} onOpenChange={handleCloseEdit}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Editar Biblioteca</DialogTitle>
+          </DialogHeader>
+
+          <form onSubmit={handleUpdate} className="space-y-4">
+            <div>
+              <Label htmlFor="edit-name">Nombre</Label>
+              <Input
+                id="edit-name"
+                type="text"
+                value={editName}
+                onChange={(e) => setEditName(e.target.value)}
+                required
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="edit-location">Ubicación</Label>
+              <Input
+                id="edit-location"
+                type="text"
+                value={editLocation}
+                onChange={(e) => setEditLocation(e.target.value)}
+                required
+              />
+            </div>
+
+            <div className="flex gap-2 pt-4">
+              <Button type="button" variant="outline" onClick={handleCloseEdit} className="flex-1 bg-transparent">
+                Cancelar
+              </Button>
+              <Button
+                type="submit"
+                className="flex-1"
+                disabled={!editName.trim() || !editLocation.trim()}
+                onClick={async (e) => {
+                  if (!editName.trim() && !editLocation.trim()) {
+                    e.preventDefault()
+                    if (confirm("Los campos están vacíos. ¿Deseas eliminar esta biblioteca?")) {
+                      await handleDelete(editingLibrary!.id)
+                    }
+                  }
+                }}
+              >
+                Actualizar
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
+    </>
   )
 }

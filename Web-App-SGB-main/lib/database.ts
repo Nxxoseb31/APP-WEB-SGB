@@ -1,292 +1,310 @@
-import type { Autor, Libro, Biblioteca } from "@/types/entities"
+import type { Author, Book, Library, SearchResult } from "./types" // Assuming these types are declared in a separate file
 
+// Simulador de base de datos en memoria para el ejemplo
 class InMemoryDatabase {
-  private autores: Map<string, Autor> = new Map()
-  private libros: Map<string, Libro> = new Map()
-  private bibliotecas: Map<string, Biblioteca> = new Map()
+  private authors: Author[] = []
+  private books: Book[] = []
+  private libraries: Library[] = []
 
-  constructor() {
-    this.seedData()
+  // Authors CRUD
+  createAuthor(author: Omit<Author, "id" | "createdAt">): Author {
+    const newAuthor: Author = {
+      ...author,
+      id: crypto.randomUUID(),
+      createdAt: new Date(),
+    }
+    this.authors.push(newAuthor)
+    return newAuthor
   }
 
-  private generateId(): string {
-    return Math.random().toString(36).substr(2, 9)
+  getAuthors(): Author[] {
+    return [...this.authors]
   }
 
-  private getCurrentDate(): string {
-    return new Date().toLocaleDateString("es-ES", {
-      day: "2-digit",
-      month: "long",
-      year: "numeric",
+  getAuthorById(id: string): Author | undefined {
+    return this.authors.find((author) => author.id === id)
+  }
+
+  updateAuthor(id: string, updates: Partial<Omit<Author, "id" | "createdAt">>): Author | null {
+    const index = this.authors.findIndex((author) => author.id === id)
+    if (index === -1) return null
+
+    this.authors[index] = { ...this.authors[index], ...updates }
+
+    // Actualizar referencias en libros
+    this.books.forEach((book) => {
+      const authorIndex = book.authors.findIndex((author) => author.id === id)
+      if (authorIndex !== -1) {
+        book.authors[authorIndex] = this.authors[index]
+      }
     })
+
+    return this.authors[index]
   }
 
-  private seedData() {
-    // Database now starts empty - no pre-established data
+  deleteAuthor(id: string): boolean {
+    const index = this.authors.findIndex((author) => author.id === id)
+    if (index === -1) return false
+
+    // Remover de todos los libros
+    this.books.forEach((book) => {
+      book.authors = book.authors.filter((author) => author.id !== id)
+    })
+
+    this.authors.splice(index, 1)
+    return true
   }
 
-  // Autor operations
-  getAllAutores(): Autor[] {
-    const autores = Array.from(this.autores.values())
-    return autores
-  }
+  // Books CRUD
+  createBook(book: Omit<Book, "id" | "createdAt">): Book {
+    const cleanAuthors = book.authors.map((author) => ({
+      id: author.id,
+      name: author.name,
+      nationality: author.nationality,
+      createdAt: author.createdAt,
+    }))
 
-  getAutorById(id: string): Autor | undefined {
-    return this.autores.get(id)
-  }
+    const cleanLibraries = book.libraries.map((library) => ({
+      id: library.id,
+      name: library.name,
+      location: library.location,
+      createdAt: library.createdAt,
+    }))
 
-  createAutor(data: { nombre: string; nacionalidad: string }): Autor {
-    const autor: Autor = {
-      id: this.generateId(),
-      nombre: data.nombre,
-      nacionalidad: data.nacionalidad,
-      fechaRegistro: this.getCurrentDate(),
+    const newBook: Book = {
+      id: crypto.randomUUID(),
+      title: book.title,
+      year: book.year,
+      authors: cleanAuthors,
+      libraries: cleanLibraries,
+      createdAt: new Date(),
     }
-    this.autores.set(autor.id, autor)
-    return autor
-  }
+    this.books.push(newBook)
 
-  updateAutor(id: string, data: { nombre: string; nacionalidad: string }): Autor {
-    const autor = this.autores.get(id)
-    if (!autor) {
-      throw new Error("Autor no encontrado")
-    }
-
-    const updatedAutor: Autor = {
-      ...autor,
-      nombre: data.nombre,
-      nacionalidad: data.nacionalidad,
-    }
-
-    this.autores.set(id, updatedAutor)
-    return updatedAutor
-  }
-
-  deleteAutor(id: string): boolean {
-    // Check if author has associated books
-    const hasBooks = Array.from(this.libros.values()).some((libro) => libro.autores.includes(id))
-
-    if (hasBooks) {
-      throw new Error("No se puede eliminar el autor porque tiene libros asociados")
-    }
-
-    return this.autores.delete(id)
-  }
-
-  // Libro operations
-  getAllLibros(): Libro[] {
-    return Array.from(this.libros.values())
-  }
-
-  getLibroById(id: string): Libro | undefined {
-    return this.libros.get(id)
-  }
-
-  createLibro(data: { titulo: string; año: number; autores: string[]; bibliotecas?: string[] }): Libro {
-    // Validate authors exist
-    for (const autorId of data.autores) {
-      if (!this.autores.has(autorId)) {
-        throw new Error(`Autor con ID ${autorId} no existe`)
-      }
-    }
-
-    // Validate libraries exist if provided
-    if (data.bibliotecas) {
-      for (const bibliotecaId of data.bibliotecas) {
-        if (!this.bibliotecas.has(bibliotecaId)) {
-          throw new Error(`Biblioteca con ID ${bibliotecaId} no existe`)
+    cleanLibraries.forEach((library) => {
+      const libraryIndex = this.libraries.findIndex((lib) => lib.id === library.id)
+      if (libraryIndex !== -1) {
+        const cleanBookForLibrary = {
+          id: newBook.id,
+          title: newBook.title,
+          year: newBook.year,
+          authors: cleanAuthors,
+          libraries: [], // Avoid circular reference
+          createdAt: newBook.createdAt,
         }
+        this.libraries[libraryIndex].books.push(cleanBookForLibrary)
       }
+    })
+
+    return newBook
+  }
+
+  getBooks(): Book[] {
+    return this.books.map((book) => ({
+      id: book.id,
+      title: book.title,
+      year: book.year,
+      authors: book.authors.map((author) => ({
+        id: author.id,
+        name: author.name,
+        nationality: author.nationality,
+        createdAt: author.createdAt,
+      })),
+      libraries: book.libraries.map((library) => ({
+        id: library.id,
+        name: library.name,
+        location: library.location,
+        createdAt: library.createdAt,
+      })),
+      createdAt: book.createdAt,
+    }))
+  }
+
+  getBookById(id: string): Book | undefined {
+    return this.books.find((book) => book.id === id)
+  }
+
+  updateBook(id: string, updates: Partial<Omit<Book, "id" | "createdAt">>): Book | null {
+    const index = this.books.findIndex((book) => book.id === id)
+    if (index === -1) return null
+
+    const oldBook = this.books[index]
+
+    const cleanUpdates: any = {}
+
+    if (updates.title !== undefined) cleanUpdates.title = updates.title
+    if (updates.year !== undefined) cleanUpdates.year = updates.year
+
+    if (updates.authors !== undefined) {
+      cleanUpdates.authors = updates.authors.map((author) => ({
+        id: author.id,
+        name: author.name,
+        nationality: author.nationality,
+        createdAt: author.createdAt,
+      }))
     }
 
-    const libro: Libro = {
-      id: this.generateId(),
-      titulo: data.titulo,
-      año: data.año,
-      autores: data.autores,
-      bibliotecas: data.bibliotecas || [],
-      fechaRegistro: this.getCurrentDate(),
+    if (updates.libraries !== undefined) {
+      cleanUpdates.libraries = updates.libraries.map((library) => ({
+        id: library.id,
+        name: library.name,
+        location: library.location,
+        createdAt: library.createdAt,
+      }))
     }
 
-    this.libros.set(libro.id, libro)
+    this.books[index] = { ...oldBook, ...cleanUpdates }
 
-    // Update library references
-    if (data.bibliotecas) {
-      for (const bibliotecaId of data.bibliotecas) {
-        const biblioteca = this.bibliotecas.get(bibliotecaId)
-        if (biblioteca) {
-          biblioteca.libros = biblioteca.libros || []
-          if (!biblioteca.libros.includes(libro.id)) {
-            biblioteca.libros.push(libro.id)
+    if (updates.libraries) {
+      // Remove from previous libraries
+      this.libraries.forEach((library) => {
+        library.books = library.books.filter((book) => book.id !== id)
+      })
+
+      // Add to new libraries
+      cleanUpdates.libraries.forEach((library: any) => {
+        const libraryIndex = this.libraries.findIndex((lib) => lib.id === library.id)
+        if (libraryIndex !== -1) {
+          const cleanBookForLibrary = {
+            id: this.books[index].id,
+            title: this.books[index].title,
+            year: this.books[index].year,
+            authors: cleanUpdates.authors || this.books[index].authors,
+            libraries: [], // Avoid circular reference
+            createdAt: this.books[index].createdAt,
           }
+          this.libraries[libraryIndex].books.push(cleanBookForLibrary)
         }
+      })
+    }
+
+    return this.books[index]
+  }
+
+  deleteBook(id: string): boolean {
+    const index = this.books.findIndex((book) => book.id === id)
+    if (index === -1) return false
+
+    // Remover de todas las bibliotecas
+    this.libraries.forEach((library) => {
+      library.books = library.books.filter((book) => book.id !== id)
+    })
+
+    this.books.splice(index, 1)
+    return true
+  }
+
+  // Libraries CRUD
+  createLibrary(library: Omit<Library, "id" | "createdAt" | "books">): Library {
+    const newLibrary: Library = {
+      ...library,
+      id: crypto.randomUUID(),
+      books: [],
+      createdAt: new Date(),
+    }
+    this.libraries.push(newLibrary)
+    return newLibrary
+  }
+
+  getLibraries(): Library[] {
+    return this.libraries.map((library) => ({
+      id: library.id,
+      name: library.name,
+      location: library.location,
+      books: library.books.map((book) => ({
+        id: book.id,
+        title: book.title,
+        year: book.year,
+        authors: book.authors,
+        libraries: [], // Avoid circular reference
+        createdAt: book.createdAt,
+      })),
+      createdAt: library.createdAt,
+    }))
+  }
+
+  getLibraryById(id: string): Library | undefined {
+    return this.libraries.find((library) => library.id === id)
+  }
+
+  updateLibrary(id: string, updates: Partial<Omit<Library, "id" | "createdAt" | "books">>): Library | null {
+    const index = this.libraries.findIndex((library) => library.id === id)
+    if (index === -1) return null
+
+    this.libraries[index] = { ...this.libraries[index], ...updates }
+
+    // Actualizar referencias en libros
+    this.books.forEach((book) => {
+      const libraryIndex = book.libraries.findIndex((library) => library.id === id)
+      if (libraryIndex !== -1) {
+        book.libraries[libraryIndex] = this.libraries[index]
       }
-    }
+    })
 
-    return libro
+    return this.libraries[index]
   }
 
-  updateLibro(id: string, data: { titulo: string; año: number; autores: string[]; bibliotecas?: string[] }): Libro {
-    const libro = this.libros.get(id)
-    if (!libro) {
-      throw new Error("Libro no encontrado")
-    }
+  deleteLibrary(id: string): boolean {
+    const index = this.libraries.findIndex((library) => library.id === id)
+    if (index === -1) return false
 
-    // Validate authors exist
-    for (const autorId of data.autores) {
-      if (!this.autores.has(autorId)) {
-        throw new Error(`Autor con ID ${autorId} no existe`)
-      }
-    }
+    // Remover de todos los libros
+    this.books.forEach((book) => {
+      book.libraries = book.libraries.filter((library) => library.id !== id)
+    })
 
-    // Validate libraries exist if provided
-    if (data.bibliotecas) {
-      for (const bibliotecaId of data.bibliotecas) {
-        if (!this.bibliotecas.has(bibliotecaId)) {
-          throw new Error(`Biblioteca con ID ${bibliotecaId} no existe`)
-        }
-      }
-    }
-
-    // Remove old library references
-    if (libro.bibliotecas) {
-      for (const bibliotecaId of libro.bibliotecas) {
-        const biblioteca = this.bibliotecas.get(bibliotecaId)
-        if (biblioteca && biblioteca.libros) {
-          biblioteca.libros = biblioteca.libros.filter((libroId) => libroId !== id)
-        }
-      }
-    }
-
-    const updatedLibro: Libro = {
-      ...libro,
-      titulo: data.titulo,
-      año: data.año,
-      autores: data.autores,
-      bibliotecas: data.bibliotecas || [],
-    }
-
-    this.libros.set(id, updatedLibro)
-
-    // Update new library references
-    if (data.bibliotecas) {
-      for (const bibliotecaId of data.bibliotecas) {
-        const biblioteca = this.bibliotecas.get(bibliotecaId)
-        if (biblioteca) {
-          biblioteca.libros = biblioteca.libros || []
-          if (!biblioteca.libros.includes(id)) {
-            biblioteca.libros.push(id)
-          }
-        }
-      }
-    }
-
-    return updatedLibro
+    this.libraries.splice(index, 1)
+    return true
   }
 
-  deleteLibro(id: string): boolean {
-    const libro = this.libros.get(id)
-    if (!libro) return false
+  // Search
+  search(query: string): SearchResult[] {
+    if (query.length < 1 || query.length > 20) return []
 
-    // Remove book references from libraries
-    if (libro.bibliotecas) {
-      for (const bibliotecaId of libro.bibliotecas) {
-        const biblioteca = this.bibliotecas.get(bibliotecaId)
-        if (biblioteca && biblioteca.libros) {
-          biblioteca.libros = biblioteca.libros.filter((libroId) => libroId !== id)
-        }
-      }
-    }
+    const results: SearchResult[] = []
+    const lowerQuery = query.toLowerCase()
 
-    return this.libros.delete(id)
-  }
-
-  // Biblioteca operations
-  getAllBibliotecas(): Biblioteca[] {
-    return Array.from(this.bibliotecas.values())
-  }
-
-  getBibliotecaById(id: string): Biblioteca | undefined {
-    return this.bibliotecas.get(id)
-  }
-
-  createBiblioteca(data: { nombre: string; ubicacion: string }): Biblioteca {
-    const biblioteca: Biblioteca = {
-      id: this.generateId(),
-      nombre: data.nombre,
-      ubicacion: data.ubicacion,
-      libros: [],
-      fechaRegistro: this.getCurrentDate(),
-    }
-    this.bibliotecas.set(biblioteca.id, biblioteca)
-    return biblioteca
-  }
-
-  updateBiblioteca(id: string, data: { nombre: string; ubicacion: string }): Biblioteca {
-    const biblioteca = this.bibliotecas.get(id)
-    if (!biblioteca) {
-      throw new Error("Biblioteca no encontrada")
-    }
-
-    const updatedBiblioteca: Biblioteca = {
-      ...biblioteca,
-      nombre: data.nombre,
-      ubicacion: data.ubicacion,
-    }
-
-    this.bibliotecas.set(id, updatedBiblioteca)
-    return updatedBiblioteca
-  }
-
-  deleteBiblioteca(id: string): boolean {
-    const biblioteca = this.bibliotecas.get(id)
-    if (!biblioteca) return false
-
-    // Remove library references from books
-    if (biblioteca.libros) {
-      for (const libroId of biblioteca.libros) {
-        const libro = this.libros.get(libroId)
-        if (libro && libro.bibliotecas) {
-          libro.bibliotecas = libro.bibliotecas.filter((bibliotecaId) => bibliotecaId !== id)
-        }
-      }
-    }
-
-    return this.bibliotecas.delete(id)
-  }
-
-  // Search operations
-  search(query: string): { autores: Autor[]; libros: Libro[]; bibliotecas: Biblioteca[] } {
-    const searchTerm = query.toLowerCase()
-
-    const autores = Array.from(this.autores.values()).filter(
-      (autor) =>
-        autor.nombre.toLowerCase().includes(searchTerm) || autor.nacionalidad.toLowerCase().includes(searchTerm),
-    )
-
-    const libros = Array.from(this.libros.values()).filter((libro) => {
-      const autorNames = libro.autores
-        .map((autorId) => {
-          const autor = this.autores.get(autorId)
-          return autor ? autor.nombre.toLowerCase() : ""
+    // Buscar autores
+    this.authors.forEach((author) => {
+      if (author.name.toLowerCase().includes(lowerQuery) || author.nationality.toLowerCase().includes(lowerQuery)) {
+        results.push({
+          type: "author",
+          id: author.id,
+          title: author.name,
+          subtitle: author.nationality,
+          data: author,
         })
-        .join(" ")
-
-      return (
-        libro.titulo.toLowerCase().includes(searchTerm) ||
-        libro.año.toString().includes(searchTerm) ||
-        autorNames.includes(searchTerm)
-      )
+      }
     })
 
-    const bibliotecas = Array.from(this.bibliotecas.values()).filter(
-      (biblioteca) =>
-        biblioteca.nombre.toLowerCase().includes(searchTerm) || biblioteca.ubicacion.toLowerCase().includes(searchTerm),
-    )
+    // Buscar libros
+    this.books.forEach((book) => {
+      if (book.title.toLowerCase().includes(lowerQuery) || book.year.toString().includes(query)) {
+        results.push({
+          type: "book",
+          id: book.id,
+          title: book.title,
+          subtitle: `${book.year} - ${book.authors.map((a) => a.name).join(", ")}`,
+          data: book,
+        })
+      }
+    })
 
-    return { autores, libros, bibliotecas }
+    // Buscar bibliotecas
+    this.libraries.forEach((library) => {
+      if (library.name.toLowerCase().includes(lowerQuery) || library.location.toLowerCase().includes(lowerQuery)) {
+        results.push({
+          type: "library",
+          id: library.id,
+          title: library.name,
+          subtitle: library.location,
+          data: library,
+        })
+      }
+    })
+
+    return results
   }
 }
 
-// Singleton instance
-export const database = new InMemoryDatabase()
+export const db = new InMemoryDatabase()

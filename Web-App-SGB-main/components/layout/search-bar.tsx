@@ -1,8 +1,6 @@
 "use client"
 
-import type React from "react"
-
-import { useState } from "react"
+import { useState, useEffect, useRef } from "react"
 import { Search } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
@@ -13,71 +11,75 @@ export function SearchBar() {
   const [query, setQuery] = useState("")
   const [showResults, setShowResults] = useState(false)
   const { results, loading, search, clearResults } = useSearch()
+  const searchRef = useRef<HTMLDivElement>(null)
 
-  const handleSearch = async () => {
-    if (query.trim()) {
-      await search(query)
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      if (query.trim() && query.length >= 1 && query.length <= 20) {
+        search(query)
+        setShowResults(true)
+      } else if (!query.trim()) {
+        clearResults()
+        setShowResults(false)
+      }
+    }, 300)
+
+    return () => clearTimeout(timeoutId)
+  }, [query, search, clearResults])
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (searchRef.current && !searchRef.current.contains(event.target as Node)) {
+        setShowResults(false)
+      }
+    }
+
+    document.addEventListener("mousedown", handleClickOutside)
+    return () => document.removeEventListener("mousedown", handleClickOutside)
+  }, [])
+
+  const handleSearch = () => {
+    if (query.trim() && query.length >= 1 && query.length <= 20) {
+      search(query)
       setShowResults(true)
-    } else {
-      clearResults()
-      setShowResults(false)
     }
   }
 
-  const handleKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter") {
-      handleSearch()
-    }
-  }
-
-  const handleClear = () => {
-    setQuery("")
-    clearResults()
-    setShowResults(false)
-  }
-
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const newQuery = e.target.value
-    setQuery(newQuery)
-
-    // Auto-search after 2 characters
-    if (newQuery.trim().length >= 2) {
-      search(newQuery)
+  const handleInputFocus = () => {
+    if (query.trim() && results.length > 0) {
       setShowResults(true)
-    } else if (newQuery.trim().length === 0) {
-      clearResults()
-      setShowResults(false)
     }
   }
 
   return (
-    <div className="relative max-w-2xl mx-auto">
+    <div ref={searchRef} className="relative w-full max-w-2xl mx-auto">
       <div className="flex gap-2">
         <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
           <Input
             type="text"
             placeholder="Buscar por nombre, título, nacionalidad, ubicación..."
             value={query}
-            onChange={handleInputChange}
-            onKeyPress={handleKeyPress}
-            className="pl-10"
+            onChange={(e) => setQuery(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && handleSearch()}
+            onFocus={handleInputFocus}
+            className="pl-10 pr-4"
+            maxLength={20}
           />
         </div>
-        <Button onClick={handleSearch} disabled={loading}>
-          {loading ? "Buscando..." : "Buscar"}
+        <Button onClick={handleSearch} disabled={!query.trim()}>
+          Buscar
         </Button>
-        {showResults && (
-          <Button variant="outline" onClick={handleClear}>
-            Limpiar
-          </Button>
-        )}
       </div>
 
       {showResults && (
-        <div className="absolute top-full left-0 right-0 mt-2 z-50">
-          <SearchResults results={results} onClose={handleClear} />
-        </div>
+        <SearchResults
+          results={results}
+          loading={loading}
+          onClose={() => setShowResults(false)}
+          query={query}
+          totalFound={results.length}
+        />
       )}
     </div>
   )

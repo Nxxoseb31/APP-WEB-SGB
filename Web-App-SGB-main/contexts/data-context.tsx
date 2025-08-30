@@ -1,79 +1,56 @@
 "use client"
 
-import { createContext, useContext, useEffect, useState, type ReactNode } from "react"
-import type { Autor, Libro, Biblioteca } from "@/types/entities"
+import type React from "react"
+import { createContext, useContext, useState, useCallback } from "react"
 
 interface DataContextType {
-  authors: Autor[]
-  books: Libro[]
-  libraries: Biblioteca[]
-  refreshAuthors: () => Promise<void>
-  refreshBooks: () => Promise<void>
-  refreshLibraries: () => Promise<void>
-  refreshAll: () => Promise<void>
+  // Data refresh triggers
+  refreshAuthors: () => void
+  refreshBooks: () => void
+  refreshLibraries: () => void
+  refreshAll: () => void
+
+  // Refresh counters to trigger re-fetches
+  authorsRefreshKey: number
+  booksRefreshKey: number
+  librariesRefreshKey: number
 }
 
 const DataContext = createContext<DataContextType | undefined>(undefined)
 
-export function DataProvider({ children }: { children: ReactNode }) {
-  const [authors, setAuthors] = useState<Autor[]>([])
-  const [books, setBooks] = useState<Libro[]>([])
-  const [libraries, setLibraries] = useState<Biblioteca[]>([])
+export function DataProvider({ children }: { children: React.ReactNode }) {
+  const [authorsRefreshKey, setAuthorsRefreshKey] = useState(0)
+  const [booksRefreshKey, setBooksRefreshKey] = useState(0)
+  const [librariesRefreshKey, setLibrariesRefreshKey] = useState(0)
 
-  const refreshAuthors = async () => {
-    try {
-      const response = await fetch("/api/autores")
-      if (response.ok) {
-        const data = await response.json()
-        setAuthors(data.data || [])
-      }
-    } catch (error) {
-      console.error("Error fetching authors:", error)
-    }
-  }
+  const refreshAuthors = useCallback(() => {
+    setAuthorsRefreshKey((prev) => prev + 1)
+  }, [])
 
-  const refreshBooks = async () => {
-    try {
-      const response = await fetch("/api/libros")
-      if (response.ok) {
-        const data = await response.json()
-        setBooks(data.data || [])
-      }
-    } catch (error) {
-      console.error("Error fetching books:", error)
-    }
-  }
+  const refreshBooks = useCallback(() => {
+    setBooksRefreshKey((prev) => prev + 1)
+  }, [])
 
-  const refreshLibraries = async () => {
-    try {
-      const response = await fetch("/api/bibliotecas")
-      if (response.ok) {
-        const data = await response.json()
-        setLibraries(data.data || [])
-      }
-    } catch (error) {
-      console.error("Error fetching libraries:", error)
-    }
-  }
+  const refreshLibraries = useCallback(() => {
+    setLibrariesRefreshKey((prev) => prev + 1)
+  }, [])
 
-  const refreshAll = async () => {
-    await Promise.all([refreshAuthors(), refreshBooks(), refreshLibraries()])
-  }
-
-  useEffect(() => {
-    refreshAll()
+  const refreshAll = useCallback(() => {
+    setAuthorsRefreshKey((prev) => prev + 1)
+    setBooksRefreshKey((prev) => prev + 1)
+    setLibrariesRefreshKey((prev) => prev + 1)
   }, [])
 
   return (
     <DataContext.Provider
       value={{
-        authors,
-        books,
-        libraries,
         refreshAuthors,
         refreshBooks,
         refreshLibraries,
         refreshAll,
+        authorsRefreshKey,
+        booksRefreshKey,
+        librariesRefreshKey,
       }}
     >
       {children}

@@ -1,46 +1,36 @@
 "use client"
 
 import { useState, useCallback } from "react"
-import type { SearchResults, ApiResponse } from "@/types/entities"
+import type { SearchResult } from "@/types/entities"
 
 export function useSearch() {
-  const [results, setResults] = useState<SearchResults>({
-    autores: [],
-    libros: [],
-    bibliotecas: [],
-  })
+  const [results, setResults] = useState<SearchResult[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   const search = useCallback(async (query: string) => {
-    if (!query.trim()) {
-      setResults({ autores: [], libros: [], bibliotecas: [] })
+    if (query.length < 1 || query.length > 20) {
+      setResults([])
       return
     }
 
-    setLoading(true)
-    setError(null)
     try {
-      const response = await fetch(`/api/search?q=${encodeURIComponent(query.trim())}`)
-      const data: ApiResponse<SearchResults> = await response.json()
-
-      if (data.success) {
-        setResults(data.data)
-      } else {
-        setError(data.error || "Error en la búsqueda")
-        setResults({ autores: [], libros: [], bibliotecas: [] })
-      }
+      setLoading(true)
+      setError(null)
+      const response = await fetch(`/api/search?q=${encodeURIComponent(query)}`)
+      if (!response.ok) throw new Error("Error en la búsqueda")
+      const data = await response.json()
+      setResults(data)
     } catch (err) {
-      setError("Error de conexión")
-      setResults({ autores: [], libros: [], bibliotecas: [] })
-      console.error("[v0] Error searching:", err)
+      setError(err instanceof Error ? err.message : "Error desconocido")
+      setResults([])
     } finally {
       setLoading(false)
     }
   }, [])
 
   const clearResults = useCallback(() => {
-    setResults({ autores: [], libros: [], bibliotecas: [] })
+    setResults([])
     setError(null)
   }, [])
 

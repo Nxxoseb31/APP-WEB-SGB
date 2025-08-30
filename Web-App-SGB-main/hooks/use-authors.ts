@@ -1,107 +1,92 @@
 "use client"
 
-import { useState, useCallback } from "react"
-import type { Autor, CreateAutorData, ApiResponse } from "@/types/entities"
+import { useState, useEffect } from "react"
+import type { Author } from "@/types/entities"
 import { useDataContext } from "@/contexts/data-context"
 
 export function useAuthors() {
-  const { authors, refreshAuthors, refreshAll } = useDataContext()
-  const [loading, setLoading] = useState(false)
+  const [authors, setAuthors] = useState<Author[]>([])
+  const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const { authorsRefreshKey, refreshAll } = useDataContext()
 
-  const createAuthor = useCallback(
-    async (data: CreateAutorData) => {
+  const fetchAuthors = async () => {
+    try {
       setLoading(true)
+      const response = await fetch("/api/authors")
+      if (!response.ok) throw new Error("Error al cargar autores")
+      const data = await response.json()
+      setAuthors(data)
       setError(null)
-      try {
-        const response = await fetch("/api/autores", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(data),
-        })
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Error desconocido")
+    } finally {
+      setLoading(false)
+    }
+  }
 
-        const result: ApiResponse<Autor> = await response.json()
-
-        if (result.success) {
-          await refreshAll()
-          return result.data
-        } else {
-          setError(result.error || "Error al crear autor")
-          throw new Error(result.error || "Error al crear autor")
-        }
-      } catch (err) {
-        const errorMessage = err instanceof Error ? err.message : "Error de conexión"
-        setError(errorMessage)
-        throw err
-      } finally {
-        setLoading(false)
+  const createAuthor = async (data: { name: string; nationality: string }) => {
+    try {
+      const response = await fetch("/api/authors", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      })
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.error)
       }
-    },
-    [refreshAll],
-  )
+      refreshAll()
+      return true
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Error al crear autor")
+      return false
+    }
+  }
 
-  const updateAuthor = useCallback(
-    async (id: string, data: CreateAutorData) => {
-      setLoading(true)
-      setError(null)
-      try {
-        const response = await fetch(`/api/autores/${id}`, {
-          method: "PUT",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(data),
-        })
-
-        const result: ApiResponse<Autor> = await response.json()
-
-        if (result.success) {
-          await refreshAll()
-          return result.data
-        } else {
-          setError(result.error || "Error al actualizar autor")
-          throw new Error(result.error || "Error al actualizar autor")
-        }
-      } catch (err) {
-        const errorMessage = err instanceof Error ? err.message : "Error de conexión"
-        setError(errorMessage)
-        throw err
-      } finally {
-        setLoading(false)
+  const updateAuthor = async (id: string, data: { name?: string; nationality?: string }) => {
+    try {
+      if (!data.name?.trim() && !data.nationality?.trim()) {
+        return await deleteAuthor(id)
       }
-    },
-    [refreshAll],
-  )
 
-  const deleteAuthor = useCallback(
-    async (id: string) => {
-      setLoading(true)
-      setError(null)
-      try {
-        const response = await fetch(`/api/autores/${id}`, {
-          method: "DELETE",
-        })
-
-        const result: ApiResponse<null> = await response.json()
-
-        if (result.success) {
-          await refreshAll()
-        } else {
-          setError(result.error || "Error al eliminar autor")
-          throw new Error(result.error || "Error al eliminar autor")
-        }
-      } catch (err) {
-        const errorMessage = err instanceof Error ? err.message : "Error de conexión"
-        setError(errorMessage)
-        throw err
-      } finally {
-        setLoading(false)
+      const response = await fetch(`/api/authors?id=${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      })
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.error)
       }
-    },
-    [refreshAll],
-  )
+      refreshAll()
+      return true
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Error al actualizar autor")
+      return false
+    }
+  }
+
+  const deleteAuthor = async (id: string) => {
+    try {
+      const response = await fetch(`/api/authors?id=${id}`, {
+        method: "DELETE",
+      })
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.error)
+      }
+      refreshAll()
+      return true
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Error al eliminar autor")
+      return false
+    }
+  }
+
+  useEffect(() => {
+    fetchAuthors()
+  }, [authorsRefreshKey])
 
   return {
     authors,
@@ -110,6 +95,6 @@ export function useAuthors() {
     createAuthor,
     updateAuthor,
     deleteAuthor,
-    refreshAuthors,
+    refetch: fetchAuthors,
   }
 }

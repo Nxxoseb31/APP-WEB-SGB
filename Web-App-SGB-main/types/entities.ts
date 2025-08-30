@@ -1,53 +1,31 @@
-export interface Autor {
+export interface Author {
   id: string
-  nombre: string
-  nacionalidad: string
-  fechaRegistro?: string
+  name: string
+  nationality: string
+  createdAt: Date
 }
 
-export interface Libro {
+export interface Book {
   id: string
-  titulo: string
-  año: number
-  autores: string[] // Array of author IDs
-  bibliotecas?: string[] // Array of library IDs
-  fechaRegistro?: string
+  title: string
+  year: number
+  authors: Author[]
+  libraries: Library[]
+  createdAt: Date
 }
 
-export interface Biblioteca {
+export interface Library {
   id: string
-  nombre: string
-  ubicacion: string
-  libros?: string[] // Array of book IDs
-  fechaRegistro?: string
+  name: string
+  location: string
+  books: Book[]
+  createdAt: Date
 }
 
-export interface SearchResults {
-  autores: Autor[]
-  libros: Libro[]
-  bibliotecas: Biblioteca[]
-}
-
-export interface ApiResponse<T> {
-  success: boolean
-  data: T
-  error: string | null
-}
-
-// Form data types
-export interface CreateAutorData {
-  nombre: string
-  nacionalidad: string
-}
-
-export interface CreateLibroData {
-  titulo: string
-  año: number
-  autores: string[]
-  bibliotecas?: string[]
-}
-
-export interface CreateBibliotecaData {
-  nombre: string
-  ubicacion: string
+export interface SearchResult {
+  type: "author" | "book" | "library"
+  id: string
+  title: string
+  subtitle: string
+  data: Author | Book | Library
 }
